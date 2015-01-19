@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008 Esmertec AG.
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2015 The SudaMod Project  
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +25,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.kylin.location.PhoneLocation;
-import android.mokee.utils.MoKeeUtils;
+import android.suda.utils.SudaUtils;
 import android.os.Handler;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -273,7 +274,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         ContactList contacts = conversation.getRecipients();
 
         // Location
-        if (MoKeeUtils.isSupportLanguage(true)) {
+        if (SudaUtils.isSupportLanguage(true)) {
             mLocationView.setText(PhoneLocation.getCityFromPhone((CharSequence)contacts.get(0).getNumber()));
         }
 
