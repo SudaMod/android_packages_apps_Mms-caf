@@ -1486,7 +1486,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static boolean getIsGroupMmsEnabled(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         boolean groupMmsPrefOn = prefs.getBoolean(
-                MessagingPreferenceActivity.GROUP_MMS_MODE, true);
+                MessagingPreferenceActivity.GROUP_MMS_MODE, false);
         return MmsConfig.getGroupMmsEnabled() &&
                 groupMmsPrefOn &&
                 !TextUtils.isEmpty(MessageUtils.getLocalNumber());

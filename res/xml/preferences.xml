@@ -158,7 +158,7 @@
 
   <PreferenceCategory android:title="@string/pref_mms_settings_title"
                       android:key="pref_key_mms_settings">
-    <SwitchPreference android:defaultValue="true"
+    <SwitchPreference android:defaultValue="false"
                       android:key="pref_key_mms_group_mms"
                       android:summary="@string/pref_summary_mms_group_mms"
                       android:title="@string/pref_title_mms_group_mms" />
