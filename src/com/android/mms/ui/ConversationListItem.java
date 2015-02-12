@@ -24,7 +24,7 @@ import android.graphics.Typeface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
-import android.kylin.location.PhoneLocation;
+import android.suda.location.PhoneLocation;
 import android.suda.utils.SudaUtils;
 import android.os.Handler;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
