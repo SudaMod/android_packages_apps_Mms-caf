@@ -69,6 +69,7 @@ import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SqliteWrapper;
@@ -84,6 +85,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Parcelable;
 import android.os.SystemProperties;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.QuickContact;
 import android.provider.Telephony;
@@ -170,6 +172,7 @@ import com.android.mms.util.DraftCache;
 import com.android.mms.util.IntentUtils;
 import com.android.mms.util.PhoneNumberFormatter;
 import com.android.mms.util.SendingProgressTokenManager;
+import com.android.mms.util.UnicodeFilter;
 import com.android.mms.widget.MmsWidgetProvider;
 import com.google.android.mms.ContentType;
 import com.google.android.mms.MmsException;
@@ -488,6 +491,8 @@ public class ComposeMessageActivity extends Activity
 
     private int mNumSms = -1;
     private int mNumMms = -1;
+
+    private UnicodeFilter mUnicodeFilter = null;
 
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
@@ -2010,6 +2015,16 @@ public class ComposeMessageActivity extends Activity
         super.onCreate(savedInstanceState);
 
         resetConfiguration(getResources().getConfiguration());
+
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        int unicodeStripping = prefs.getInt(MessagingPreferenceActivity.UNICODE_STRIPPING,
+                MessagingPreferenceActivity.UNICODE_STRIPPING_LEAVE_INTACT);
+
+        if (unicodeStripping != MessagingPreferenceActivity.UNICODE_STRIPPING_LEAVE_INTACT) {
+            boolean stripNonDecodableOnly =
+                    unicodeStripping == MessagingPreferenceActivity.UNICODE_STRIPPING_NON_DECODABLE;
+            mUnicodeFilter = new UnicodeFilter(stripNonDecodableOnly);
+        }
 
         View inflate = getLayoutInflater().inflate(R.layout.compose_message_activity, null);
         mZoomGestureOverlayView = new ZoomGestureOverlayView(this);
@@ -4234,6 +4249,9 @@ public class ComposeMessageActivity extends Activity
 
             updateSendButtonState();
 
+            // strip unicode for counting characters
+            s = stripUnicodeIfRequested(s);
+
             updateCounter(s, start, before, count);
 
             ensureCorrectButtonHeight();
@@ -4683,6 +4701,8 @@ public class ComposeMessageActivity extends Activity
             // them back once the recipient list has settled.
             removeRecipientsListeners();
 
+            // strip unicode chars before sending (if applicable)
+            mWorkingMessage.setText(stripUnicodeIfRequested(mWorkingMessage.getText()));
 
             if (mWorkingMessage.getResendMultiRecipients()) {
                 // If resend sms recipient is more than one, use mResendSmsRecipient
@@ -4701,6 +4721,13 @@ public class ComposeMessageActivity extends Activity
         if (mSendDiscreetMode || MessageUtils.isMailboxMode()) {
             finish();
         }
+    }
+
+    private CharSequence stripUnicodeIfRequested(CharSequence text) {
+        if (mUnicodeFilter != null) {
+            text = mUnicodeFilter.filter(text);
+        }
+        return text;
     }
 
     private void resetMessage() {
