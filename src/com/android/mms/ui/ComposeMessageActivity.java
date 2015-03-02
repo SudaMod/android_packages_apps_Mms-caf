@@ -6005,7 +6005,8 @@ public class ComposeMessageActivity extends Activity
                                     getContext().getString(R.string.menu_lock));
                 }
 
-                mode.getMenu().findItem(R.id.forward).setVisible(isMessageForwardable(position));
+                //mode.getMenu().findItem(R.id.forward).setVisible(isMessageForwardable(position));
+                mode.getMenu().findItem(R.id.forward).setVisible(true);
 
                 if (mMmsSelected > 0) {
                     mode.getMenu().findItem(R.id.copy_to_sim).setVisible(false);
