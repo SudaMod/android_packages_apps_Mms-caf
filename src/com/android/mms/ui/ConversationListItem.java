@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008 Esmertec AG.
  * Copyright (C) 2008 The Android Open Source Project
+ * Copyright (C) 2015 The SudaMod Project  
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +24,8 @@ import android.graphics.Typeface;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
+import android.suda.location.PhoneLocation;
+import android.suda.utils.SudaUtils;
 import android.os.Handler;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -60,6 +63,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
     private TextView mSubjectView;
     private TextView mFromView;
     private TextView mDateView;
+    private TextView mLocationView;
     private View mAttachmentView;
     private View mErrorIndicator;
     private CheckableQuickContactBadge mAvatarView;
@@ -98,6 +102,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         mSubjectView = (TextView) findViewById(R.id.subject);
 
         mDateView = (TextView) findViewById(R.id.date);
+        mLocationView = (TextView) findViewById(R.id.location);
         mAttachmentView = findViewById(R.id.attachment);
         mErrorIndicator = findViewById(R.id.error);
         mAvatarView = (CheckableQuickContactBadge) findViewById(R.id.avatar);
@@ -267,6 +272,11 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
         // Register for updates in changes of any of the contacts in this conversation.
         ContactList contacts = conversation.getRecipients();
+
+        // Location
+        if (SudaUtils.isSupportLanguage(true)) {
+            mLocationView.setText(PhoneLocation.getCityFromPhone((CharSequence)contacts.get(0).getNumber()));
+        }
 
         if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
             Log.v(TAG, "bind: contacts.addListeners " + this);
