@@ -109,6 +109,7 @@ import com.android.internal.telephony.cdma.sms.SmsEnvelope;
 import com.android.internal.telephony.cdma.sms.UserData;
 import com.android.internal.telephony.uicc.IccUtils;
 
+import com.android.contacts.common.widget.SelectPhoneAccountDialogFragment;
 import com.android.mms.LogTag;
 import com.android.mms.MmsApp;
 import com.android.mms.MmsConfig;
@@ -867,22 +868,8 @@ public class MessageUtils {
             return;
         } else if (slide.hasVCal()) {
             mm = slide.getVCal();
-            Intent intent = new Intent();
-            Uri vCalFileUri = mm.getUri();;
-            // change the intent type based on the view triggering this call
-            // from compose - use ACTION_VIEW
-            // from others - use ACTION_SEND
-            String [] projection = { "_data" };     // absolute file path
-            Cursor cursor = context.getContentResolver().query(mm.getUri(), projection,
-                    null, null, null);
-            if (cursor != null && cursor.moveToFirst()) {
-                // if file exists , then we are looking at a local mms msg
-                intent.setAction(Intent.ACTION_SEND);
-                cursor.close();
-            } else {
-                intent.setAction(Intent.ACTION_VIEW);
-            }
-
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            Uri vCalFileUri = mm.getUri();
             intent.setDataAndType(vCalFileUri, ContentType.TEXT_VCALENDAR.toLowerCase());
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             context.startActivity(intent);
@@ -2799,5 +2786,30 @@ public class MessageUtils {
         bos.close();
 
         return new File(filePath);
+    }
+
+    public interface OnSimSelectedCallback {
+        void onSimSelected(int subId);
+    }
+
+    public static void showSimSelector(Activity activity, final OnSimSelectedCallback cb) {
+        final TelecomManager telecomMgr =
+                (TelecomManager) activity.getSystemService(Context.TELECOM_SERVICE);
+        final List<PhoneAccountHandle> handles = telecomMgr.getCallCapablePhoneAccounts();
+
+        final SelectPhoneAccountDialogFragment.SelectPhoneAccountListener listener =
+                new SelectPhoneAccountDialogFragment.SelectPhoneAccountListener() {
+            @Override
+            public void onPhoneAccountSelected(PhoneAccountHandle selectedAccountHandle,
+                    boolean setDefault) {
+                cb.onSimSelected(Integer.valueOf(selectedAccountHandle.getId()));
+            }
+            @Override
+            public void onDialogDismissed() {
+            }
+        };
+
+        SelectPhoneAccountDialogFragment.showAccountDialog(activity.getFragmentManager(),
+                R.string.select_phone_account_title, false /* canSetDefault */, handles, listener);
     }
 }

@@ -110,6 +110,7 @@ import android.text.method.TextKeyListener;
 import android.text.style.URLSpan;
 import android.util.Log;
 import android.util.SparseBooleanArray;
+import android.util.TypedValue;
 import android.view.ActionMode;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -341,6 +342,7 @@ public class ComposeMessageActivity extends Activity
     private View mTopPanel;                 // View containing the recipient and subject editors
     private View mBottomPanel;              // View containing the text editor, send button, ec.
     private EditText mTextEditor;           // Text editor to type your message into
+    private float mTextEditorFontSize;
     private TextView mTextCounter;          // Shows the number of characters used in text editor
     private TextView mSendButtonMms;        // Press to send mms
     private ImageButton mSendButtonSms;     // Press to send sms
@@ -408,7 +410,6 @@ public class ComposeMessageActivity extends Activity
                                             // If the value >= 0, then we jump to that line. If the
                                             // value is maxint, then we jump to the end.
     private long mLastMessageId;
-    private AlertDialog mMsimDialog;     // Used for MSIM subscription choose
 
     // Record the resend sms recipient when the sms send to more than one recipient
     private String mResendSmsRecipient;
@@ -892,37 +893,21 @@ public class ComposeMessageActivity extends Activity
         }
     }
 
-   private void processMsimSendMessage(int phoneId, final boolean bCheckEcmMode) {
-        if (mMsimDialog != null) {
-            mMsimDialog.dismiss();
-        }
-        mWorkingMessage.setWorkingMessageSub(phoneId);
-        sendMessage(bCheckEcmMode);
-    }
-
-    private void LaunchMsimDialog(final boolean bCheckEcmMode) {
-        ContactList recipients = isRecipientsEditorVisible() ?
-            mRecipientsEditor.constructContactsFromInput(false) : getRecipients();
-        mMsimDialog = new MsimDialog(this,
-                                     new MsimDialog.OnSimButtonClickListener() {
-                                         @Override
-                                         public void onSimButtonClick(int phoneId) {
-                                             processMsimSendMessage(phoneId,
-                                                                    bCheckEcmMode);
-                                         }
-                                     },
-                                     recipients);
-        mMsimDialog.show();
-    }
-
     private void sendMsimMessage(boolean bCheckEcmMode, int subscription) {
         mWorkingMessage.setWorkingMessageSub(subscription);
         sendMessage(bCheckEcmMode);
     }
 
-    private void sendMsimMessage(boolean bCheckEcmMode) {
+    private void sendMsimMessage(final boolean bCheckEcmMode) {
         if (SubscriptionManager.isSMSPromptEnabled()) {
-            LaunchMsimDialog(bCheckEcmMode);
+            MessageUtils.showSimSelector(this, new MessageUtils.OnSimSelectedCallback() {
+                @Override
+                public void onSimSelected(int subId) {
+                    int phoneId = SubscriptionManager.getPhoneId(subId);
+                    mWorkingMessage.setWorkingMessageSub(phoneId);
+                    sendMessage(bCheckEcmMode);
+                }
+            });
         } else {
             int subId = SubscriptionManager.getDefaultSmsSubId();
             int phoneId = SubscriptionManager.getPhoneId(subId);
@@ -2045,9 +2030,8 @@ public class ComposeMessageActivity extends Activity
     public void onZoomWithScale(float scale) {
         if (mMsgListView != null) {
             mMsgListView.handleZoomWithScale(scale);
-            int fontSize = mMsgListView.getZoomFontSize();
             if (mTextEditor != null) {
-                mTextEditor.setTextSize(fontSize);
+                mTextEditor.setTextSize(TypedValue.COMPLEX_UNIT_PX, mTextEditorFontSize * scale);
             }
         }
 
@@ -4340,6 +4324,7 @@ public class ComposeMessageActivity extends Activity
             mBottomPanel = findViewById(R.id.bottom_panel);
             mBottomPanel.setVisibility(View.VISIBLE);
             mTextEditor = (EditText) findViewById(R.id.embedded_text_editor);
+            mTextEditorFontSize = mTextEditor.getTextSize();
             mTextCounter = (TextView) findViewById(R.id.text_counter);
             mSendButtonMms = (TextView) findViewById(R.id.send_button_mms);
             mSendButtonSms = (ImageButton) findViewById(R.id.send_button_sms);
