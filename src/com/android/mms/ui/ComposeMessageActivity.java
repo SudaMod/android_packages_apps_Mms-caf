@@ -2090,8 +2090,8 @@ public class ComposeMessageActivity extends Activity
             mSubjectRemoveButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    mWorkingMessage.setSubject(null, true);
                     showSubjectEditor(false);
+                    mWorkingMessage.setSubject(null, true);
                     updateSendButtonState();
                 }
             });
@@ -5168,8 +5168,18 @@ public class ComposeMessageActivity extends Activity
                     // more people before the conversation begins.
                     if (cursor != null && cursor.getCount() == 0
                             && !isRecipientsEditorVisible() && !mSentMessage) {
-                        initRecipientsEditor();
-                        mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
+                        if (TextUtils.isEmpty(mTextEditor.getText())) {
+                            // No message was entered, dismiss
+                            exitComposeMessageActivity(new Runnable() {
+                                @Override
+                                public void run() {
+                                    goToConversationList();
+                                }
+                            });
+                        } else {
+                            initRecipientsEditor();
+                            mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
+                        }
                     }
 
                     // FIXME: freshing layout changes the focused view to an unexpected
