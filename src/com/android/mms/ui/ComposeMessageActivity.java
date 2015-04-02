@@ -5135,6 +5135,7 @@ public class ComposeMessageActivity extends Activity
                         }
                     }
 
+                    final int preCursorChangeCount = mMsgListAdapter.getCount();
                     mMsgListAdapter.changeCursor(cursor);
 
                     if (newSelectionPos != -1) {
@@ -5168,7 +5169,7 @@ public class ComposeMessageActivity extends Activity
                     // more people before the conversation begins.
                     if (cursor != null && cursor.getCount() == 0
                             && !isRecipientsEditorVisible() && !mSentMessage) {
-                        if (TextUtils.isEmpty(mTextEditor.getText())) {
+                        if (preCursorChangeCount >= 1 && TextUtils.isEmpty(mTextEditor.getText())) {
                             // No message was entered, dismiss
                             exitComposeMessageActivity(new Runnable() {
                                 @Override
