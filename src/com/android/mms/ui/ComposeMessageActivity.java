@@ -137,6 +137,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Toolbar;
+import android.view.Window;
 
 import com.android.contacts.common.util.MaterialColorMapUtils;
 import com.android.contacts.common.util.MaterialColorMapUtils.MaterialPalette;
@@ -481,6 +482,7 @@ public class ComposeMessageActivity extends Activity
     private final static int REPLACE_ATTACHMENT_MASK = 1 << 16;
 
     private boolean mShowTwoButtons = false;
+    private Window mNavBarColor;
 
     private int mAccentColor = 0;
     private int mStatusBarColor = 0;
@@ -1898,6 +1900,7 @@ public class ComposeMessageActivity extends Activity
 
     private void updateThemeColors(int accentColor, int statusBarColor) {
         final ColorDrawable background = new ColorDrawable();
+        mNavBarColor = getWindow();
         final ObjectAnimator backgroundAnimation = ObjectAnimator.ofInt(background,
                 "color", mAccentColor, accentColor);
         final ObjectAnimator statusBarAnimation = ObjectAnimator.ofInt(getWindow(),
@@ -1906,6 +1909,7 @@ public class ComposeMessageActivity extends Activity
         backgroundAnimation.setEvaluator(new ArgbEvaluator());
         statusBarAnimation.setEvaluator(new ArgbEvaluator());
         findViewById(R.id.header).setBackground(background);
+        mNavBarColor.setNavigationBarColor(accentColor);
 
         final AnimatorSet animation = new AnimatorSet();
         animation.playTogether(backgroundAnimation, statusBarAnimation);
