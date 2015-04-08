@@ -72,6 +72,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toolbar;
 
+import com.android.internal.telephony.PhoneConstants;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
 import com.android.mms.LogTag;
@@ -98,7 +99,7 @@ import static com.android.mms.ui.MessageListAdapter.COLUMN_MMS_SUBJECT;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_MMS_SUBJECT_CHARSET;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_ADDRESS;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_BODY;
-import static com.android.mms.ui.MessageListAdapter.COLUMN_PHONE_ID;
+import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_SUB_ID;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_DATE;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_READ;
 import static com.android.mms.ui.MessageListAdapter.COLUMN_SMS_TYPE;
@@ -135,7 +136,7 @@ public class MailBoxMessageList extends ListActivity implements
     private static final String ORIGIN_SUB_ID = "origin_sub_id";
     private static final String NONE_SELECTED = "0";
     private static final String BOX_SPINNER_TYPE = "box_spinner_type";
-    private static final String SLOT_SPINNER_TYPE = "slot_spinner_type";
+    private static final String SUB_SPINNER_TYPE = "sub_spinner_type";
     private final static String THREAD_ID = "thread_id";
     private final static String MESSAGE_ID = "message_id";
     private final static String MESSAGE_TYPE = "message_type";
@@ -151,7 +152,7 @@ public class MailBoxMessageList extends ListActivity implements
     private boolean mIsPause = false;
     private boolean mQueryDone = true;
     private int mQueryBoxType = TYPE_INBOX;
-    private int mQuerySlotType = TYPE_ALL_SLOT;
+    private int mQuerySubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
     private BoxMsgListQueryHandler mQueryHandler;
     private String mSmsWhereDelete = "";
     private String mMmsWhereDelete = "";
@@ -310,7 +311,7 @@ public class MailBoxMessageList extends ListActivity implements
                 }
 
                 Uri msgUri = ContentUris.withAppendedId(Mms.CONTENT_URI, msgId);
-                int subId = c.getInt(COLUMN_PHONE_ID);
+                int subId = c.getInt(COLUMN_SMS_SUB_ID);
                 int mmsStatus = c.getInt(MessageListAdapter.COLUMN_MMS_STATUS);
                 int downloadStatus = MessageUtils.getMmsDownloadStatus(mmsStatus);
                 if (PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND == c.getInt(COLUMN_MMS_MESSAGE_TYPE)) {
@@ -363,7 +364,7 @@ public class MailBoxMessageList extends ListActivity implements
         intent.putExtra(TransactionBundle.URI, uri.toString());
         intent.putExtra(TransactionBundle.TRANSACTION_TYPE,
                 Transaction.RETRIEVE_TRANSACTION);
-        intent.putExtra(Mms.PHONE_ID, subId); //destination subId
+        intent.putExtra(PhoneConstants.SUBSCRIPTION_KEY, subId);
         intent.putExtra(ORIGIN_SUB_ID,
                 SubscriptionManager.getDefaultDataSubId());
         startService(intent);
@@ -468,8 +469,8 @@ public class MailBoxMessageList extends ListActivity implements
                 }
                 if (oldQueryType != mQueryBoxType) {
                     if (mQueryBoxType == TYPE_DRAFTBOX) {
-                        mQuerySlotType = TYPE_ALL_SLOT;
-                        mSlotSpinner.setSelection(TYPE_ALL_SLOT);
+                        mQuerySubId = SubscriptionManager.DEFAULT_SUBSCRIPTION_ID;
+                        //mSlotSpinner.setSelection(TYPE_ALL_SLOT);
                         mSlotSpinner.setEnabled(false);
                     } else {
                         mSlotSpinner.setEnabled(true);
@@ -487,24 +488,16 @@ public class MailBoxMessageList extends ListActivity implements
         });
 
         if (MessageUtils.isMsimIccCardActive()) {
-            mSlotSpinner.setPrompt(getResources().getString(R.string.slot_type_select));
-            ArrayAdapter<CharSequence> slotAdapter = ArrayAdapter.createFromResource(this,
-                    R.array.slot_type, android.R.layout.simple_spinner_item);
-            slotAdapter.setDropDownViewResource(R.layout.simple_spinner_dropdown_item);
-            mSlotSpinner.setAdapter(slotAdapter);
-            mSlotSpinner.setSelection(sp.getInt(SLOT_SPINNER_TYPE, TYPE_ALL_SLOT));
+            MSimSpinnerAdapter adapter = new MSimSpinnerAdapter(mSlotSpinner.getContext());
+            mSlotSpinner.setAdapter(adapter);
+            //mSlotSpinner.setSelection(sp.getInt(SLOT_SPINNER_TYPE, TYPE_ALL_SLOT));
             mSlotSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
                 @Override
                 public void onItemSelected(AdapterView<?> parent,
                                            View view, int position, long id) {
-                    sp.edit().putInt(SLOT_SPINNER_TYPE, position).commit();
-                    // position 0-2 means slotType: slot_all, slot_one, slot_two
-                    int oldQuerySlotType = mQuerySlotType;
-                    if (position > TYPE_SLOT_TWO) {
-                        position = TYPE_ALL_SLOT;
-                    }
-                    mQuerySlotType = position;
-                    if (oldQuerySlotType != mQuerySlotType) {
+                    //sp.edit().putInt(SUB_SPINNER_TYPE, position).commit();
+                    if (id != mQuerySubId) {
+                        mQuerySubId = (int) id;
                         startAsyncQuery();
                         getListView().invalidateViews();
                     }
@@ -515,6 +508,8 @@ public class MailBoxMessageList extends ListActivity implements
                     // do nothing
                 }
             });
+            getLoaderManager().initLoader(0, null,
+                    new MSimSpinnerAdapter.LoaderCallbacks(adapter));
         } else {
             mSlotSpinner.setVisibility(View.GONE);
         }
@@ -529,12 +524,8 @@ public class MailBoxMessageList extends ListActivity implements
                 // AsyncQueryHandler.onQueryComplete() method doesn't provide
                 // the same token as what I input here.
                 mQueryDone = false;
-                String selStr = null;
-                if (mQuerySlotType == TYPE_SLOT_ONE) {
-                    selStr = "phone_id = " + MessageUtils.SUB1;
-                } else if (mQuerySlotType == TYPE_SLOT_TWO) {
-                    selStr = "phone_id = " + MessageUtils.SUB2;
-                }
+                String selStr = mQuerySubId != SubscriptionManager.DEFAULT_SUBSCRIPTION_ID
+                        ? ("sub_id = " + mQuerySubId) : null;
                 if (mIsInSearchMode) {
                     Uri queryUri = SEARCH_URI.buildUpon().appendQueryParameter(
                             "search_mode", Integer.toString(mSearchModePosition)).build()

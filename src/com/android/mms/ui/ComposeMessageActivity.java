@@ -494,6 +494,8 @@ public class ComposeMessageActivity extends Activity
 
     private UnicodeFilter mUnicodeFilter = null;
 
+    private AddNumbersTask mAddNumbersTask;
+
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
         Thread current = Thread.currentThread();
@@ -901,8 +903,8 @@ public class ComposeMessageActivity extends Activity
         }
     }
 
-    private void sendMsimMessage(boolean bCheckEcmMode, int subscription) {
-        mWorkingMessage.setWorkingMessageSub(subscription);
+    private void sendMsimMessage(boolean bCheckEcmMode, int subId) {
+        mWorkingMessage.setWorkingMessageSub(subId);
         sendMessage(bCheckEcmMode);
     }
 
@@ -911,15 +913,12 @@ public class ComposeMessageActivity extends Activity
             MessageUtils.showSimSelector(this, new MessageUtils.OnSimSelectedCallback() {
                 @Override
                 public void onSimSelected(int subId) {
-                    int phoneId = SubscriptionManager.getPhoneId(subId);
-                    mWorkingMessage.setWorkingMessageSub(phoneId);
+                    mWorkingMessage.setWorkingMessageSub(subId);
                     sendMessage(bCheckEcmMode);
                 }
             });
         } else {
-            int subId = SubscriptionManager.getDefaultSmsSubId();
-            int phoneId = SubscriptionManager.getPhoneId(subId);
-            mWorkingMessage.setWorkingMessageSub(phoneId);
+            mWorkingMessage.setWorkingMessageSub(SubscriptionManager.getDefaultSmsSubId());
             sendMessage(bCheckEcmMode);
         }
     }
@@ -936,12 +935,12 @@ public class ComposeMessageActivity extends Activity
         return false;
     }
 
-    private boolean isLTEOnlyMode(int subscription) {
+    private boolean isLTEOnlyMode(int slot) {
         try {
             int tddOnly = TelephonyManager.getIntAtIndex(getContentResolver(),
-                    LTE_DATA_ONLY_KEY, subscription);
+                    LTE_DATA_ONLY_KEY, slot);
             int network = TelephonyManager.getIntAtIndex(getContentResolver(),
-                    Settings.Global.PREFERRED_NETWORK_MODE, subscription);
+                    Settings.Global.PREFERRED_NETWORK_MODE, slot);
             return network == RILConstants.NETWORK_MODE_LTE_ONLY && tddOnly == LTE_DATA_ONLY_MODE;
         } catch (SettingNotFoundException snfe) {
             Log.w(TAG, "isLTEOnlyMode: Could not find PREFERRED_NETWORK_MODE!");
@@ -949,21 +948,26 @@ public class ComposeMessageActivity extends Activity
         return false;
     }
 
-    private void showDisableLTEOnlyDialog(int subscription) {
+    private void showDisableLTEOnlyDialog(int slot) {
         Intent intent = new Intent();
         intent.setAction(INTENT_ACTION_LTE_DATA_ONLY_DIALOG);
-        intent.putExtra(PhoneConstants.SLOT_KEY, subscription);
+        intent.putExtra(PhoneConstants.SLOT_KEY, slot);
         startActivity(intent);
     }
 
-    private void confirmSendMessageIfNeeded(int subscription) {
-        if (isLTEOnlyMode(subscription)) {
-            showDisableLTEOnlyDialog(subscription);
+    private void confirmSendMessageIfNeeded(int slotId) {
+        if (isLTEOnlyMode(slotId)) {
+            showDisableLTEOnlyDialog(slotId);
             return;
         }
         boolean isMms = mWorkingMessage.requiresMms();
+        int[] subIds = SubscriptionManager.getSubId(slotId);
+        if (subIds == null || subIds.length == 0) {
+            return;
+        }
+
         if (!isRecipientsEditorVisible()) {
-            sendMsimMessage(true, subscription);
+            sendMsimMessage(true, subIds[0]);
             return;
         }
 
@@ -974,7 +978,7 @@ public class ComposeMessageActivity extends Activity
             // as the destination.
             ContactList contacts = mRecipientsEditor.constructContactsFromInput(false);
             mDebugRecipients = contacts.serialize();
-            sendMsimMessage(true, subscription);
+            sendMsimMessage(true, subIds[0]);
         }
     }
 
@@ -3639,7 +3643,8 @@ public class ComposeMessageActivity extends Activity
                 break;
 
             case REQUEST_CODE_ADD_RECIPIENTS:
-                insertNumbersIntoRecipientsEditor(
+                mAddNumbersTask = new AddNumbersTask();
+                mAddNumbersTask.execute(
                         data.getStringArrayListExtra(SelectRecipientsList.EXTRA_RECIPIENTS));
                 break;
 
@@ -3685,16 +3690,43 @@ public class ComposeMessageActivity extends Activity
         }
     };
 
-    private void insertNumbersIntoRecipientsEditor(final ArrayList<String> numbers) {
-        ContactList list = ContactList.getByNumbers(numbers, true);
-        ContactList existing = mRecipientsEditor.constructContactsFromInput(true);
-        for (Contact contact : existing) {
-            if (!contact.existsInDatabase()) {
-                list.add(contact);
+    class AddNumbersTask extends AsyncTask<ArrayList<String>, Void, Void> {
+        ProgressDialog mPD;
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+            mPD = new ProgressDialog(ComposeMessageActivity.this);
+            mPD.setMessage("Adding contacts...");
+            mPD.show();
+        }
+
+        @Override
+        protected Void doInBackground(ArrayList<String>... params) {
+            if (params == null || params.length < 1) {
+                return null;
+            }
+
+            ArrayList<String> numbers = params[0];
+
+            ContactList list = ContactList.getByNumbers(numbers, true);
+            ContactList existing = mRecipientsEditor.constructContactsFromInput(true);
+            for (Contact contact : existing) {
+                if (!contact.existsInDatabase()) {
+                    list.add(contact);
+                }
+            }
+
+            mRecipientsEditor.populate(list);
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            if (mPD != null && mPD.isShowing()) {
+                mPD.dismiss();
             }
         }
-        mRecipientsEditor.setText(null);
-        mRecipientsEditor.populate(list);
     }
 
     private void processPickResult(final Intent data) {
@@ -4390,9 +4422,9 @@ public class ComposeMessageActivity extends Activity
         mIndicatorForSimMmsFir = (ImageView) findViewById(R.id.first_sim_card_indicator_mms);
         mIndicatorForSimSmsFir = (ImageView) findViewById(R.id.first_sim_card_indicator_sms);
         mIndicatorForSimMmsFir.setImageDrawable(MessageUtils
-               .getMultiSimIcon(this, PhoneConstants.SUB1));
+               .getMultiSimIconForSlot(this, PhoneConstants.SUB1));
         mIndicatorForSimSmsFir.setImageDrawable(MessageUtils
-                .getMultiSimIcon(this, PhoneConstants.SUB1));
+                .getMultiSimIconForSlot(this, PhoneConstants.SUB1));
         mSendButtonMms.setOnClickListener(this);
         mSendButtonSms.setOnClickListener(this);
 
@@ -4404,9 +4436,9 @@ public class ComposeMessageActivity extends Activity
         mIndicatorForSimMmsSec = (ImageView) findViewById(R.id.second_sim_card_indicator_mms);
         mIndicatorForSimSmsSec = (ImageView) findViewById(R.id.second_sim_card_indicator_sms);
         mIndicatorForSimMmsSec.setImageDrawable(MessageUtils
-               .getMultiSimIcon(this, PhoneConstants.SUB2));
+               .getMultiSimIconForSlot(this, PhoneConstants.SUB2));
         mIndicatorForSimSmsSec.setImageDrawable(MessageUtils
-                .getMultiSimIcon(this, PhoneConstants.SUB2));
+                .getMultiSimIconForSlot(this, PhoneConstants.SUB2));
         mSendButtonMmsViewSec.setOnClickListener(this);
         mSendButtonSmsViewSec.setOnClickListener(this);
     }
