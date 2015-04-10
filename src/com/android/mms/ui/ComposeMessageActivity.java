@@ -3696,7 +3696,7 @@ public class ComposeMessageActivity extends Activity
         protected void onPreExecute() {
             super.onPreExecute();
             mPD = new ProgressDialog(ComposeMessageActivity.this);
-            mPD.setMessage("Adding contacts...");
+            mPD.setMessage(getString(R.string.adding_selected_recipients_dialog_text));
             mPD.show();
         }
 
@@ -5319,7 +5319,8 @@ public class ComposeMessageActivity extends Activity
                 // Rebuild the message list so each MessageItem will get the last contact info.
                 ComposeMessageActivity.this.mMsgListAdapter.notifyDataSetChanged();
 
-                if (mRecipientsEditor != null) {
+                if (mRecipientsEditor != null && (mAddNumbersTask == null ||
+                        mAddNumbersTask.getStatus() != AsyncTask.Status.RUNNING)) {
                     mRecipientsEditor.populate(recipients);
                 }
             }
