@@ -383,11 +383,13 @@ public class TransactionService extends Service implements Observer {
                     " intent=" + intent);
         }
 
-        Bundle extras = intent.getExtras();
+        final Bundle extras = intent.getExtras();
         String action = intent.getAction();
-        if ((ACTION_ONALARM.equals(action) || ACTION_ENABLE_AUTO_RETRIEVE.equals(action) ||
-                (extras == null)) || ((extras != null) && !extras.containsKey("uri")
-                && !extras.containsKey(CANCEL_URI))) {
+        boolean hasUriExtra = extras != null &&
+                (extras.containsKey(TransactionBundle.URI) || extras.containsKey(CANCEL_URI));
+
+        if (ACTION_ONALARM.equals(action) ||
+                ACTION_ENABLE_AUTO_RETRIEVE.equals(action) || !hasUriExtra) {
 
             //We hit here when either the Retrymanager triggered us or there is
             //send operation in which case uri is not set. For rest of the
@@ -396,7 +398,9 @@ public class TransactionService extends Service implements Observer {
             // Scan database to find all pending operations.
             Cursor cursor = PduPersister.getPduPersister(this).getPendingMessages(
                     System.currentTimeMillis());
-            Log.d(TAG, "Cursor= " + DatabaseUtils.dumpCursorToString(cursor));
+            if (Log.isLoggable(LogTag.TRANSACTION, Log.VERBOSE)) {
+                Log.v(TAG, "Pending message cursor: " + DatabaseUtils.dumpCursorToString(cursor));
+            }
             if (cursor != null) {
                 try {
                     int count = cursor.getCount();
@@ -524,14 +528,13 @@ public class TransactionService extends Service implements Observer {
                 RetryScheduler.setRetryAlarm(this);
                 stopSelfIfIdle(serviceId);
             }
-        } else if ((extras != null) && extras.containsKey(CANCEL_URI)) {
-            String uriStr = intent.getStringExtra(CANCEL_URI);
-            Uri mCancelUri = Uri.parse(uriStr);
+        } else if (extras != null && extras.containsKey(CANCEL_URI)) {
+            Uri cancelUri = Uri.parse(intent.getStringExtra(CANCEL_URI));
             for (Transaction transaction : mProcessing) {
-                transaction.cancelTransaction(mCancelUri);
+                transaction.cancelTransaction(cancelUri);
             }
             for (Transaction transaction : mPending) {
-                transaction.cancelTransaction(mCancelUri);
+                transaction.cancelTransaction(cancelUri);
             }
         } else {
             if (Log.isLoggable(LogTag.TRANSACTION, Log.VERBOSE)) {
@@ -899,8 +902,8 @@ public class TransactionService extends Service implements Observer {
     }
 
     protected void endMmsConnectivity() {
-        long subId = SubscriptionManager.getOnDemandDataSubId();
-        endMmsConnectivity(Long.toString(subId));
+        int subId = SubscriptionManager.getOnDemandDataSubId();
+        endMmsConnectivity(Integer.toString(subId));
     }
 
     protected void endMmsConnectivity(String subId) {
