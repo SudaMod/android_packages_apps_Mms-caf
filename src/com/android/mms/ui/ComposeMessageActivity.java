@@ -544,11 +544,15 @@ public class ComposeMessageActivity extends Activity
 
     private void pickContacts(int mode, int requestCode) {
         Intent intent = new Intent(ComposeMessageActivity.this, SelectRecipientsList.class);
-        if (mRecipientsEditor == null) {
-            initRecipientsEditor();
+        // avoid initializing mRecipientsEditor wrong. Otherwise, this will
+        // cause failure when saving a draft.
+        if(requestCode == REQUEST_CODE_ADD_RECIPIENTS) {
+            if (mRecipientsEditor == null) {
+                initRecipientsEditor();
+            }
+            ContactList contacts = mRecipientsEditor.constructContactsFromInput(false);
+            intent.putExtra(SelectRecipientsList.EXTRA_RECIPIENTS, contacts.getNumbers());
         }
-        ContactList contacts = mRecipientsEditor.constructContactsFromInput(false);
-        intent.putExtra(SelectRecipientsList.EXTRA_RECIPIENTS, contacts.getNumbers());
         intent.putExtra(SelectRecipientsList.MODE, mode);
         startActivityForResult(intent, requestCode);
     }
@@ -2076,8 +2080,8 @@ public class ComposeMessageActivity extends Activity
             mSubjectRemoveButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    mWorkingMessage.setSubject(null, true);
                     showSubjectEditor(false);
+                    mWorkingMessage.setSubject(null, true);
                     updateSendButtonState();
                 }
             });
@@ -5150,6 +5154,7 @@ public class ComposeMessageActivity extends Activity
                         }
                     }
 
+                    final int preCursorChangeCount = mMsgListAdapter.getCount();
                     mMsgListAdapter.changeCursor(cursor);
 
                     if (newSelectionPos != -1) {
@@ -5183,8 +5188,18 @@ public class ComposeMessageActivity extends Activity
                     // more people before the conversation begins.
                     if (cursor != null && cursor.getCount() == 0
                             && !isRecipientsEditorVisible() && !mSentMessage) {
-                        initRecipientsEditor();
-                        mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
+                        if (preCursorChangeCount >= 1 && TextUtils.isEmpty(mTextEditor.getText())) {
+                            // No message was entered, dismiss
+                            exitComposeMessageActivity(new Runnable() {
+                                @Override
+                                public void run() {
+                                    goToConversationList();
+                                }
+                            });
+                        } else {
+                            initRecipientsEditor();
+                            mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
+                        }
                     }
 
                     // FIXME: freshing layout changes the focused view to an unexpected
