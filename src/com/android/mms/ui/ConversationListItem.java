@@ -277,7 +277,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
         // Location
         if (SudaUtils.isSupportLanguage(true)) {
-            mLocationView.setText(PhoneLocation.getCityFromPhone((CharSequence)contacts.get(0).getNumber()));
+            mLocationView.setText(PhoneLocation.getCityFromPhone(contacts.get(0).getNumber()));
         }
 
         if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
