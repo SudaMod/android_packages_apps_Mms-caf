@@ -6055,7 +6055,7 @@ public class ComposeMessageActivity extends Activity
         }
 
         private boolean isAttachmentSaveable(int pos) {
-            MessageListItem msglistItem = (MessageListItem) mMsgListView.getChildAt(pos);
+            MessageListItem msglistItem = (MessageListItem) mMsgListView.getChildAt(pos -mMsgListView.getFirstVisiblePosition());
             return msglistItem != null && msglistItem.getMessageItem() != null
                     && msglistItem.getMessageItem().hasAttachemntToSave();
         }
@@ -6144,7 +6144,7 @@ public class ComposeMessageActivity extends Activity
         }
 
         private MessageItem getMessageItemByPos(int position) {
-            MessageListItem msglistItem = (MessageListItem) mMsgListView.getChildAt(position);
+            MessageListItem msglistItem = (MessageListItem) mMsgListView.getChildAt(position - mMsgListView.getFirstVisiblePosition());
             if (msglistItem == null) {
                 return null;
             }
@@ -6212,7 +6212,7 @@ public class ComposeMessageActivity extends Activity
                 item.setCountDown(countDown);
                 int count = mMsgListView.getChildCount();
                 for (int i = 0; i < count; i++) {
-                    MessageListItem v = (MessageListItem) mMsgListView.getChildAt(i);
+                    MessageListItem v = (MessageListItem) mMsgListView.getChildAt(i - mMsgListView.getFirstVisiblePosition());
                     MessageItem listItem = v.getMessageItem();
                     if (item.equals(listItem)) {
                         v.updateDelayCountDown();
