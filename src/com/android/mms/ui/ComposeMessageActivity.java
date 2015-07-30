@@ -305,7 +305,7 @@ public class ComposeMessageActivity extends Activity
 
     // To reduce janky interaction when message history + draft loads and keyboard opening
     // query the messages + draft after the keyboard opens. This controls that behavior.
-    private static final boolean DEFER_LOADING_MESSAGES_AND_DRAFT = true;
+    private static final boolean DEFER_LOADING_MESSAGES_AND_DRAFT = false;
 
     // The max amount of delay before we force load messages and draft.
     // 500ms is determined empirically. We want keyboard to have a chance to be shown before
@@ -2113,7 +2113,9 @@ public class ComposeMessageActivity extends Activity
 
             // Ensure the "to" label is hidden when Subject editor shows
             TextView toLabel = (TextView) findViewById(R.id.to_label);
-            toLabel.setVisibility(View.GONE);
+            if (toLabel != null) {
+                toLabel.setVisibility(View.GONE);
+            }
         } else {
             mSubjectTextEditor.removeTextChangedListener(mSubjectEditorWatcher);
         }
@@ -2405,7 +2407,7 @@ public class ComposeMessageActivity extends Activity
         mMessagesAndDraftLoaded = false;
 
         CharSequence text = mWorkingMessage.getText();
-        if (text != null) {
+        if (!TextUtils.isEmpty(text)) {
             mTextEditor.setTextKeepState(text);
         }
         if (!DEFER_LOADING_MESSAGES_AND_DRAFT) {
@@ -3951,6 +3953,7 @@ public class ComposeMessageActivity extends Activity
                     title = res.getString(R.string.attach_add_contact_as_vcard);
                     message = res.getString(R.string.failed_to_add_media, title);
                     Toast.makeText(ComposeMessageActivity.this, message, Toast.LENGTH_SHORT).show();
+                    deleteLastMms();
                     return;
                 default:
                     throw new IllegalArgumentException("unknown error " + error);
@@ -4184,13 +4187,12 @@ public class ComposeMessageActivity extends Activity
         CharSequence text = mWorkingMessage.getText();
 
         // TextView.setTextKeepState() doesn't like null input.
-        if (text != null && mIsSmsEnabled) {
+        // Initalized with "", so setting anything 0 length is pointless
+        if (!TextUtils.isEmpty(text) && mIsSmsEnabled) {
             mTextEditor.setTextKeepState(text);
 
             // Set the edit caret to the end of the text.
             mTextEditor.setSelection(mTextEditor.length());
-        } else {
-            mTextEditor.setText("");
         }
         onKeyboardStateChanged();
     }
@@ -4612,6 +4614,14 @@ public class ComposeMessageActivity extends Activity
         // WorkingMessage.loadDraft() can return a new WorkingMessage object that doesn't
         // have its conversation set. Make sure it is set.
         mWorkingMessage.setConversation(mConversation);
+
+        // WorkingMessage.loadDraft() can return a new WorkingMessage object that does not
+        // have the logical mText. This happens when we have gone to select contacts to send
+        // A message to and have loaded the previous draft upon our return in instances where the
+        // user filled out a text message body before filling out any recipients.
+        if (!mWorkingMessage.getText().equals(mTextEditor.getText())) {
+            mWorkingMessage.setText(mTextEditor.getText());
+        }
 
         return true;
     }
@@ -6244,6 +6254,30 @@ public class ComposeMessageActivity extends Activity
             }
         }
     };
+
+    private void deleteLastMms() {
+        Runnable r = new Runnable() {
+            @Override
+            public void run() {
+                // delete the last failed mms
+                Cursor cursor =
+                        (Cursor) mMsgListAdapter.getItem(mMsgListAdapter.getCount() - 1);
+                if (cursor != null) {
+                    long msgId = cursor.getLong(COLUMN_ID);
+                    cursor.close();
+                    Uri uri = ContentUris.withAppendedId(Mms.CONTENT_URI, msgId);
+                    try {
+                        SqliteWrapper.delete(ComposeMessageActivity.this,
+                                mContentResolver, uri, null, null);
+                    } catch (SQLiteException e) {
+                        Log.e(TAG, "Unable to delete unsent vcard mms", e);
+                    }
+                }
+            }
+        };
+        Thread t = new Thread(r);
+        t.run();
+    }
 
     @Override
     public void onPickup() {
