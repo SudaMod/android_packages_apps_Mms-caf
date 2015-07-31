@@ -42,6 +42,9 @@ import android.widget.Checkable;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.a1os.cloud.phone.PhoneUtil;
+import com.a1os.cloud.phone.PhoneUtil.CallBack;
+
 import com.android.contacts.common.widget.CheckableQuickContactBadge;
 import com.android.mms.LogTag;
 import com.android.mms.R;
@@ -81,13 +84,15 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
     public static final Pattern RTL_CHARACTERS =
         Pattern.compile("[\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\uFE70-\uFEFF]");
 
+    PhoneUtil mPu;
+
     public ConversationListItem(Context context) {
         super(context);
     }
 
     public ConversationListItem(Context context, AttributeSet attrs) {
         super(context, attrs);
-
+        mPu = new PhoneUtil(context);
         if (sDefaultContactImage == null) {
             Resources res = context.getResources();
             Bitmap defaultImage = BitmapFactory.decodeResource(res, R.drawable.ic_contact_picture);
@@ -278,7 +283,12 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
         // Location
         if (SudaUtils.isSupportLanguage(true)) {
-            mLocationView.setText(PhoneLocation.getCityFromPhone(contacts.get(0).getNumber()));
+            mPu.getNumberInfo(contacts.get(0).getNumber(), new CallBack() {
+                    public void execute(String response) {
+                        mLocationView.setText(response);
+                    }
+                }
+            );
         }
 
         if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
