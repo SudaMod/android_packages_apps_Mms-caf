@@ -43,7 +43,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.a1os.cloud.phone.PhoneUtil;
-import com.a1os.cloud.phone.PhoneUtil.CallBack;
 
 import com.android.contacts.common.widget.CheckableQuickContactBadge;
 import com.android.mms.LogTag;
@@ -283,12 +282,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
         // Location
         if (SudaUtils.isSupportLanguage(true)) {
-            mPu.getNumberInfo(contacts.get(0).getNumber(), new CallBack() {
-                    public void execute(String response) {
-                        mLocationView.setText(response);
-                    }
-                }
-            );
+            mLocationView.setText(mPu.getLocalNumberInfo(contacts.get(0).getNumber()));
         }
 
         if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
