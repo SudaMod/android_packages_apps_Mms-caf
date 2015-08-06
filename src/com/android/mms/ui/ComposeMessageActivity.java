@@ -171,7 +171,6 @@ import com.android.mms.ui.MessageUtils.ResizeImageResultCallback;
 import com.android.mms.ui.RecipientsEditor.RecipientContextMenuInfo;
 import com.android.mms.ui.zoom.ZoomGestureOverlayView;
 import com.android.mms.ui.zoom.ZoomGestureOverlayView.IZoomListener;
-import com.android.mms.ui.zoom.ZoomMessageListItem;
 import com.android.mms.util.DraftCache;
 import com.android.mms.util.IntentUtils;
 import com.android.mms.util.PhoneNumberFormatter;
@@ -213,12 +212,11 @@ public class ComposeMessageActivity extends Activity
     public static final int REQUEST_CODE_CREATE_SLIDESHOW               = 106;
     public static final int REQUEST_CODE_ECM_EXIT_DIALOG                = 107;
     public static final int REQUEST_CODE_ADD_CONTACT                    = 108;
-    public static final int REQUEST_CODE_PICK                           = 109;
+    public static final int REQUEST_CODE_ADD_RECIPIENTS                 = 109;
     public static final int REQUEST_CODE_ATTACH_ADD_CONTACT_INFO        = 110;
     public static final int REQUEST_CODE_ATTACH_ADD_CONTACT_VCARD       = 111;
     public static final int REQUEST_CODE_ATTACH_REPLACE_CONTACT_INFO    = 112;
-    public static final int REQUEST_CODE_ADD_RECIPIENTS                 = 113;
-    public static final int REQUEST_CODE_ADD_CALENDAR_EVENTS            = 114;
+    public static final int REQUEST_CODE_ADD_CALENDAR_EVENTS            = 113;
 
     private static final String TAG = LogTag.TAG;
 
@@ -305,7 +303,7 @@ public class ComposeMessageActivity extends Activity
 
     // To reduce janky interaction when message history + draft loads and keyboard opening
     // query the messages + draft after the keyboard opens. This controls that behavior.
-    private static final boolean DEFER_LOADING_MESSAGES_AND_DRAFT = false;
+    private static final boolean DEFER_LOADING_MESSAGES_AND_DRAFT = true;
 
     // The max amount of delay before we force load messages and draft.
     // 500ms is determined empirically. We want keyboard to have a chance to be shown before
@@ -505,8 +503,6 @@ public class ComposeMessageActivity extends Activity
     private UnicodeFilter mUnicodeFilter = null;
 
     private AddNumbersTask mAddNumbersTask;
-
-    boolean isNotProcessingNumbers = true;
 
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
@@ -1084,29 +1080,27 @@ public class ComposeMessageActivity extends Activity
                 return;
             }
 
-            if (isNotProcessingNumbers) {
-                mWorkingMessage.setWorkingRecipients(mRecipientsEditor.getNumbers());
-                mWorkingMessage.setHasEmail(mRecipientsEditor.containsEmail(), true);
+            mWorkingMessage.setWorkingRecipients(mRecipientsEditor.getNumbers());
+            mWorkingMessage.setHasEmail(mRecipientsEditor.containsEmail(), true);
 
-                checkForTooManyRecipients();
-                // If pick recipients from Contacts,
-                // then only update title once when process finished
-                if (mIsProcessPickedRecipients) {
-                     return;
-                }
-
-                if (mRecipientsPickList != null) {
-                    // Update UI with mRecipientsPickList, which is picked from
-                    // People.
-                    updateTitle(mRecipientsPickList);
-                    mRecipientsPickList = null;
-                } else {
-                    updateTitleForRecipientsChange(s);
-                }
-
-                // If we have gone to zero recipients, disable send button.
-                updateSendButtonState();
+            checkForTooManyRecipients();
+            // If pick recipients from Contacts,
+            // then only update title once when process finished
+            if (mIsProcessPickedRecipients) {
+                return;
             }
+
+            if (mRecipientsPickList != null) {
+                // Update UI with mRecipientsPickList, which is picked from
+                // People.
+                updateTitle(mRecipientsPickList);
+                mRecipientsPickList = null;
+            } else {
+                updateTitleForRecipientsChange(s);
+            }
+
+            // If we have gone to zero recipients, disable send button.
+            updateSendButtonState();
         }
     };
 
@@ -2407,7 +2401,7 @@ public class ComposeMessageActivity extends Activity
         mMessagesAndDraftLoaded = false;
 
         CharSequence text = mWorkingMessage.getText();
-        if (!TextUtils.isEmpty(text)) {
+        if (text != null) {
             mTextEditor.setTextKeepState(text);
         }
         if (!DEFER_LOADING_MESSAGES_AND_DRAFT) {
@@ -2515,7 +2509,8 @@ public class ComposeMessageActivity extends Activity
         mIsPickingContact = false;
         addRecipientsListeners();
 
-        if (isRecipientsEditorVisible()) {
+        if (isRecipientsEditorVisible() && (mAddNumbersTask == null ||
+                mAddNumbersTask.getStatus() == AsyncTask.Status.FINISHED)) {
             mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
         }
 
@@ -3533,10 +3528,6 @@ public class ComposeMessageActivity extends Activity
             mWorkingMessage.removeFakeMmsForDraft();
         }
 
-        if (requestCode == REQUEST_CODE_PICK) {
-            mWorkingMessage.asyncDeleteDraftSmsMessage(mConversation);
-        }
-
         if (requestCode == REQUEST_CODE_ADD_CONTACT) {
             // The user might have added a new contact. When we tell contacts to add a contact
             // and tap "Done", we're not returned to Messaging. If we back out to return to
@@ -3644,12 +3635,6 @@ public class ComposeMessageActivity extends Activity
                 }
                 break;
 
-            case REQUEST_CODE_PICK:
-                if (data != null) {
-                    processPickResult(data);
-                }
-                break;
-
             case REQUEST_CODE_ATTACH_REPLACE_CONTACT_INFO:
                 // Caused by user choose to replace the attachment, so we need remove
                 // the attachment and then add the contact info to text.
@@ -3676,7 +3661,7 @@ public class ComposeMessageActivity extends Activity
                 break;
 
             case REQUEST_CODE_ADD_RECIPIENTS:
-                mShouldLoadDraft = true;
+                mWorkingMessage.asyncDeleteDraftMessage(mConversation);
                 mAddNumbersTask = new AddNumbersTask();
                 mAddNumbersTask.execute(
                         data.getStringArrayListExtra(SelectRecipientsList.EXTRA_RECIPIENTS));
@@ -3733,7 +3718,7 @@ public class ComposeMessageActivity extends Activity
             mPD.setMessage(getString(R.string.adding_selected_recipients_dialog_text));
             mPD.setCancelable(false);
             mPD.show();
-            isNotProcessingNumbers = false;
+            mRecipientsEditor.removeTextChangedListener(mRecipientsWatcher);
         }
 
         @Override
@@ -3755,44 +3740,9 @@ public class ComposeMessageActivity extends Activity
             if (mPD != null && mPD.isShowing()) {
                 mPD.dismiss();
             }
-            isNotProcessingNumbers = true;
+            mRecipientsEditor.addTextChangedListener(mRecipientsWatcher);
+            mRecipientsWatcher.afterTextChanged(mRecipientsEditor.getText());
         }
-    }
-
-    private void processPickResult(final Intent data) {
-        // The EXTRA_PHONE_URIS stores the phone's urls that were selected by user in the
-        // multiple phone picker.
-        Bundle bundle = data.getExtras().getBundle("result");
-        final Set<String> keySet = bundle.keySet();
-        final int recipientCount = (keySet != null) ? keySet.size() : 0;
-
-        // If total recipients count > recipientLimit,
-        // then forbid add reipients to RecipientsEditor
-        final int recipientLimit = MmsConfig.getRecipientLimit();
-        int totalRecipientsCount = mExistsRecipientsCount + recipientCount;
-        if (recipientLimit != Integer.MAX_VALUE && totalRecipientsCount > recipientLimit) {
-            new AlertDialog.Builder(this)
-                    .setMessage(getString(R.string.too_many_recipients, totalRecipientsCount,
-                            recipientLimit))
-                    .setPositiveButton(android.R.string.ok, new OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            // if already exists some recipients,
-                            // then new pick recipients with exists recipients count
-                            // can't more than recipient limit count.
-                            int newPickRecipientsCount = recipientLimit - mExistsRecipientsCount;
-                            if (newPickRecipientsCount <= 0) {
-                                return;
-                            }
-                            processAddRecipients(keySet, newPickRecipientsCount);
-                        }
-                    })
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .create().show();
-            return;
-        }
-
-        processAddRecipients(keySet, recipientCount);
     }
 
     private Uri[] buildUris(final Set<String> keySet, final int newPickRecipientsCount) {
@@ -3807,70 +3757,6 @@ public class ComposeMessageActivity extends Activity
             }
         }
         return newUris;
-    }
-
-    private void processAddRecipients(final Set<String> keySet, final int newPickRecipientsCount) {
-        // if process pick result that is pick recipients from Contacts
-        mIsProcessPickedRecipients = true;
-        final Handler handler = new Handler();
-        final ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle(getText(R.string.pick_too_many_recipients));
-        progressDialog.setMessage(getText(R.string.adding_recipients));
-        progressDialog.setIndeterminate(true);
-        progressDialog.setCancelable(false);
-
-        final Runnable showProgress = new Runnable() {
-            @Override
-            public void run() {
-                progressDialog.show();
-            }
-        };
-        // Only show the progress dialog if we can not finish off parsing the return data in 1s,
-        // otherwise the dialog could flicker.
-        handler.postDelayed(showProgress, 1000);
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                final ContactList list;
-                try {
-                    list = ContactList.blockingGetByUris(buildUris(keySet, newPickRecipientsCount));
-                } finally {
-                    handler.removeCallbacks(showProgress);
-                }
-                if (mRecipientsEditor != null) {
-                    ContactList exsitList = mRecipientsEditor.constructContactsFromInput(true);
-                    // Remove the repeat recipients.
-                    if (exsitList.equals(list)) {
-                        exsitList.clear();
-                        list.addAll(0, exsitList);
-                    } else {
-                        list.removeAll(exsitList);
-                        list.addAll(0, exsitList);
-                    }
-                }
-                // TODO: there is already code to update the contact header
-                // widget and recipients
-                // editor if the contacts change. we can re-use that code.
-                final Runnable populateWorker = new Runnable() {
-                    @Override
-                    public void run() {
-                        mRecipientsEditor.populate(list);
-                        // Set value for mRecipientsPickList and
-                        // mRecipientsWatcher will update the UI.
-                        mRecipientsPickList = list;
-                        updateTitle(list);
-                        // if process finished, then dismiss the progress dialog
-                        progressDialog.dismiss();
-
-                        // if populate finished, then recipients pick process
-                        // end
-                        mIsProcessPickedRecipients = false;
-                    }
-                };
-                handler.post(populateWorker);
-            }
-        }, "ComoseMessageActivity.processPickResult").start();
     }
 
     private final ResizeImageResultCallback mResizeImageCallback = new ResizeImageResultCallback() {
@@ -4187,12 +4073,13 @@ public class ComposeMessageActivity extends Activity
         CharSequence text = mWorkingMessage.getText();
 
         // TextView.setTextKeepState() doesn't like null input.
-        // Initalized with "", so setting anything 0 length is pointless
-        if (!TextUtils.isEmpty(text) && mIsSmsEnabled) {
+        if (text != null && mIsSmsEnabled) {
             mTextEditor.setTextKeepState(text);
 
             // Set the edit caret to the end of the text.
             mTextEditor.setSelection(mTextEditor.length());
+        } else {
+            mTextEditor.setText("");
         }
         onKeyboardStateChanged();
     }
@@ -4584,11 +4471,10 @@ public class ComposeMessageActivity extends Activity
      * Load the draft
      *
      * If mWorkingMessage has content in memory that's worth saving, return false.
-     * If mShouldLoadDraft is true, force the previous draft to load no matter what.
      * Otherwise, call the async operation to load draft and return true.
      */
     private boolean loadDraft() {
-        if (mWorkingMessage.isWorthSaving() && !mShouldLoadDraft) {
+        if (mWorkingMessage.isWorthSaving()) {
             Log.w(TAG, "CMA.loadDraft: called with non-empty working message, bail");
             return false;
         }
@@ -4614,14 +4500,6 @@ public class ComposeMessageActivity extends Activity
         // WorkingMessage.loadDraft() can return a new WorkingMessage object that doesn't
         // have its conversation set. Make sure it is set.
         mWorkingMessage.setConversation(mConversation);
-
-        // WorkingMessage.loadDraft() can return a new WorkingMessage object that does not
-        // have the logical mText. This happens when we have gone to select contacts to send
-        // A message to and have loaded the previous draft upon our return in instances where the
-        // user filled out a text message body before filling out any recipients.
-        if (!mWorkingMessage.getText().equals(mTextEditor.getText())) {
-            mWorkingMessage.setText(mTextEditor.getText());
-        }
 
         return true;
     }
