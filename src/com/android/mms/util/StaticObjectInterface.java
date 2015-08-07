@@ -9,5 +9,5 @@ public interface StaticObjectInterface {
             "校验代码", "动态代码", "检验代码", "确认代码", "短信口令", "动态密码", "交易码", "驗證碼", "激活碼", "動態碼", "校驗碼", "檢驗碼", "驗證代碼",
             "激活代碼", "校驗代碼", "確認代碼", "動態代碼", "檢驗代碼"};
     String[] CPATCHAS_KEYWORD_EN = {"CODE", "code"};
-    String ACTION_CLICK = "me.drakeet.inmessage.intent.action.NotificationClick";
+
 }
