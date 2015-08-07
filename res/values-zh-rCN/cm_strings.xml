@@ -260,4 +260,5 @@
   <string name="adding_selected_recipients_dialog_text">添加联系人\u2026</string>
   <string name="pref_title_mms_smart_dialer">智能呼叫</string>
   <string name="pref_summary_mms_smart_dialer">移动手机到您的耳边时，自动呼叫该联系人</string>
+  <string name="click_copy">点击复制</string>
 </resources>

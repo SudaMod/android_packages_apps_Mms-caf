@@ -104,6 +104,10 @@ import com.google.android.mms.pdu.NotificationInd;
 import com.google.android.mms.pdu.PduHeaders;
 import com.google.android.mms.pdu.PduPersister;
 
+import com.android.mms.util.StringUtils;
+import android.content.ClipboardManager;
+import android.widget.Toast;
+
 /**
  * This class provides view of a message in the messages list.
  */
@@ -125,6 +129,9 @@ public class MessageListItem extends ZoomMessageListItem implements
     static final int MSG_LIST_DETAILS = 3;
 
     private boolean mIsCheck = false;
+
+    private View mDivider;
+    private Button mNextButton;
 
     private View mMmsView;
     private ImageView mImageView;
@@ -189,6 +196,9 @@ public class MessageListItem extends ZoomMessageListItem implements
         mSimMessageAddress = (TextView) findViewById(R.id.sim_message_address);
         mMessageSizeView = (TextView) findViewById(R.id.mms_msg_size_view);
         mMmsLayout = (LinearLayout) findViewById(R.id.mms_layout_view_parent);
+
+        mDivider = (View) findViewById(R.id.text_button_divider);
+        mNextButton = (Button) findViewById(R.id.text_button);
 
         mAvatar.setOverlay(null);
 
@@ -493,6 +503,21 @@ public class MessageListItem extends ZoomMessageListItem implements
         if (!sameItem || haveLoadedPdu) {
             mBodyTextView.setText(formattedMessage);
         }
+        final String captchas = getCaptchas(formattedMessage);
+        if (!"".equals(captchas)) {
+            mDivider.setVisibility(View.VISIBLE);
+            mNextButton.setVisibility(View.VISIBLE);
+            mNextButton.getBackground().setAlpha(10);
+            mNextButton.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    ClipboardManager c = (ClipboardManager)
+                    mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                    c.setText(captchas);
+                    Toast.makeText(mContext, R.string.code_have_copy, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
         updateSimIndicatorView(mMessageItem.mSubId);
         // Debugging code to put the URI of the image attachment in the body of the list item.
         if (DEBUG) {
@@ -623,6 +648,17 @@ public class MessageListItem extends ZoomMessageListItem implements
             }
         }
     };
+
+    public static String getCaptchas (CharSequence formattedMessage){
+        if (!StringUtils.isContainsChinese(formattedMessage.toString())) {
+            if (StringUtils.isCaptchasMessageEn(formattedMessage.toString()) && !StringUtils.tryToGetCaptchasEn(formattedMessage.toString()).equals("")) {
+                return StringUtils.tryToGetCaptchasEn(formattedMessage.toString());
+            }
+        } else if (StringUtils.isCaptchasMessage(formattedMessage.toString()) && !StringUtils.tryToGetCaptchas(formattedMessage.toString()).equals("")) {
+            return StringUtils.tryToGetCaptchas(formattedMessage.toString());
+        }
+        return "";
+    }
 
     @Override
     public void startAudio() {
