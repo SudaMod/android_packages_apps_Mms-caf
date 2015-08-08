@@ -19,4 +19,5 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
   <string name="click_copy">Click to copy</string>
   <string name="code_have_copy">Captchas has been copied</string>
+  <string name="detect_code_have_copy">Captchas has been copied</string>
 </resources>

@@ -19,4 +19,5 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
   <string name="click_copy">点击复制</string>
   <string name="code_have_copy">验证码已复制</string>
+  <string name="detect_code_have_copy">检测到验证码，已为您复制到剪切板啦！</string>
 </resources>

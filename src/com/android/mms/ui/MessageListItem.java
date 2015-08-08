@@ -509,7 +509,7 @@ public class MessageListItem extends ZoomMessageListItem implements
             mBodyTextView.setText(formattedMessage);
         }
         if((mCount-1 == mPosition) && mHaveUnRead && !mHaveCopy) {
-            final String captchas = getCaptchas(formattedMessage);
+            final String captchas = StringUtils.getCaptchas(formattedMessage.toString());
             if (!"".equals(captchas)) {
                 mDivider.setVisibility(View.VISIBLE);
                 mNextButton.setVisibility(View.VISIBLE);
@@ -659,17 +659,6 @@ public class MessageListItem extends ZoomMessageListItem implements
             }
         }
     };
-
-    public static String getCaptchas (CharSequence formattedMessage){
-        if (!StringUtils.isContainsChinese(formattedMessage.toString())) {
-            if (StringUtils.isCaptchasMessageEn(formattedMessage.toString()) && !StringUtils.tryToGetCaptchasEn(formattedMessage.toString()).equals("")) {
-                return StringUtils.tryToGetCaptchasEn(formattedMessage.toString());
-            }
-        } else if (StringUtils.isCaptchasMessage(formattedMessage.toString()) && !StringUtils.tryToGetCaptchas(formattedMessage.toString()).equals("")) {
-            return StringUtils.tryToGetCaptchas(formattedMessage.toString());
-        }
-        return "";
-    }
 
     @Override
     public void startAudio() {

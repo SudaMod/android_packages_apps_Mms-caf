@@ -108,6 +108,10 @@ import com.google.android.mms.pdu.MultimediaMessagePdu;
 import com.google.android.mms.pdu.PduHeaders;
 import com.google.android.mms.pdu.PduPersister;
 
+import com.android.mms.util.StringUtils;
+import android.content.ClipboardManager;
+import android.widget.Toast;
+
 /**
  * This class is used to update the notification indicator. It will check whether
  * there are unread messages. If yes, it would show the notification indicator,
@@ -960,6 +964,14 @@ public class MessagingNotification {
                             ", addr=" + address + ", thread_id=" + threadId);
                 }
 
+                final String captchas = StringUtils.getCaptchas(message);
+                final String company = StringUtils.getContentInBracket(message, address);
+                if (!"".equals(captchas)) {
+                    ClipboardManager c = (ClipboardManager)
+                    context.getSystemService(Context.CLIPBOARD_SERVICE);
+                    c.setText(captchas);
+                    message = StringUtils.getResultText(company, captchas);
+                }
 
                 NotificationInfo info = getNewMessageNotificationInfo(context, true /* isSms */,
                         address, message, null /* subject */,
