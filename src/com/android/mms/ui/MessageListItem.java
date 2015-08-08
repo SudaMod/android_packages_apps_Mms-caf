@@ -508,6 +508,7 @@ public class MessageListItem extends ZoomMessageListItem implements
             mDivider.setVisibility(View.VISIBLE);
             mNextButton.setVisibility(View.VISIBLE);
             mNextButton.getBackground().setAlpha(10);
+            mNextButton.setText(mContext.getString(R.string.click_copy) + "(" + captchas + ")");
             mNextButton.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
