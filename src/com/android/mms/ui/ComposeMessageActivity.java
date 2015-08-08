@@ -504,6 +504,8 @@ public class ComposeMessageActivity extends Activity
 
     private AddNumbersTask mAddNumbersTask;
 
+    private static boolean mHaveUnRead = false;
+
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
         Thread current = Thread.currentThread();
@@ -4448,7 +4450,7 @@ public class ComposeMessageActivity extends Activity
             : Pattern.compile("\\b" + Pattern.quote(highlightString), Pattern.CASE_INSENSITIVE);
 
         // Initialize the list adapter with a null cursor.
-        mMsgListAdapter = new MessageListAdapter(this, null, mMsgListView, true, highlight);
+        mMsgListAdapter = new MessageListAdapter(this, null, mMsgListView, true, highlight, mHaveUnRead);
         mMsgListAdapter.setOnDataSetChangedListener(mDataSetChangedListener);
         mMsgListAdapter.setMsgListItemHandler(mMessageListItemHandler);
         mMsgListView.setAdapter(mMsgListAdapter);
@@ -5351,9 +5353,9 @@ public class ComposeMessageActivity extends Activity
         Contact.removeListener(this);
     }
 
-    public static Intent createIntent(Context context, long threadId) {
+    public static Intent createIntent(Context context, long threadId, boolean haveUnRead) {
         Intent intent = new Intent(context, ComposeMessageActivity.class);
-
+        mHaveUnRead = haveUnRead;
         if (threadId > 0) {
             intent.setData(Conversation.getUri(threadId));
         }
@@ -5898,7 +5900,7 @@ public class ComposeMessageActivity extends Activity
                     // Once the above background thread is complete, this
                     // runnable is run
                     // on the UI thread.
-                    Intent intent = createIntent(ComposeMessageActivity.this, 0);
+                    Intent intent = createIntent(ComposeMessageActivity.this, 0, false);
 
                     intent.putExtra(KEY_EXIT_ON_SENT, true);
                     intent.putExtra(KEY_FORWARDED_MESSAGE, true);

@@ -156,6 +156,9 @@ public class MessageListItem extends ZoomMessageListItem implements
     static private RoundedBitmapDrawable sDefaultContactImage;
     private Presenter mPresenter;
     private int mPosition;      // for debugging
+    private int mCount;      // for debugging
+    boolean mHaveUnRead = false;
+    boolean mHaveCopy = false;
     private ImageLoadedCallback mImageLoadedCallback;
     private boolean mMultiRecipients;
     private int mManageMode;
@@ -211,7 +214,7 @@ public class MessageListItem extends ZoomMessageListItem implements
     }
 
     public void bind(MessageItem msgItem, int accentColor,
-            boolean convHasMultiRecipients, int position, boolean selected) {
+            boolean convHasMultiRecipients, int position, int count, boolean selected, boolean haveUnRead) {
         if (DEBUG) {
             Log.v(TAG, "bind for item: " + position + " old: " +
                    (mMessageItem != null ? mMessageItem.toString() : "NULL" ) +
@@ -220,6 +223,8 @@ public class MessageListItem extends ZoomMessageListItem implements
         boolean sameItem = mMessageItem != null && mMessageItem.mMsgId == msgItem.mMsgId;
         mMessageItem = msgItem;
         mPosition = position;
+        mCount = count;
+        mHaveUnRead = haveUnRead;
         mMultiRecipients = convHasMultiRecipients;
 
         setLongClickable(false);
@@ -503,21 +508,26 @@ public class MessageListItem extends ZoomMessageListItem implements
         if (!sameItem || haveLoadedPdu) {
             mBodyTextView.setText(formattedMessage);
         }
-        final String captchas = getCaptchas(formattedMessage);
-        if (!"".equals(captchas)) {
-            mDivider.setVisibility(View.VISIBLE);
-            mNextButton.setVisibility(View.VISIBLE);
-            mNextButton.getBackground().setAlpha(10);
-            mNextButton.setText(mContext.getString(R.string.click_copy) + "(" + captchas + ")");
-            mNextButton.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    ClipboardManager c = (ClipboardManager)
-                    mContext.getSystemService(Context.CLIPBOARD_SERVICE);
-                    c.setText(captchas);
-                    Toast.makeText(mContext, R.string.code_have_copy, Toast.LENGTH_SHORT).show();
-                }
-            });
+        if((mCount-1 == mPosition) && mHaveUnRead && !mHaveCopy) {
+            final String captchas = getCaptchas(formattedMessage);
+            if (!"".equals(captchas)) {
+                mDivider.setVisibility(View.VISIBLE);
+                mNextButton.setVisibility(View.VISIBLE);
+                mNextButton.getBackground().setAlpha(10);
+                mNextButton.setText(mContext.getString(R.string.click_copy) + "(" + captchas + ")");
+                mNextButton.setOnClickListener(new OnClickListener() {
+                    @Override
+                        public void onClick(View v) {
+                        ClipboardManager c = (ClipboardManager)
+                        mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                        c.setText(captchas);
+                        Toast.makeText(mContext, R.string.code_have_copy, Toast.LENGTH_SHORT).show();
+                        mDivider.setVisibility(View.GONE);
+                        mNextButton.setVisibility(View.GONE);
+                        mHaveCopy = true;
+                    }
+                });
+            }
         }
         updateSimIndicatorView(mMessageItem.mSubId);
         // Debugging code to put the URI of the image attachment in the body of the list item.
