@@ -188,7 +188,7 @@ public class StringUtils implements StaticObjectInterface {
                 return analyseSpecialCompany(matcher2.group(1), str, address);
             }
         }
-        return null;
+        return "";
     }
 
     private static String analyseSpecialCompany(String company, String content, String address) {

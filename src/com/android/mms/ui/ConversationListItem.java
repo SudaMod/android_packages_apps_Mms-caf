@@ -43,6 +43,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.a1os.cloud.phone.PhoneUtil;
+import com.android.mms.util.StringUtils;
 
 import com.android.contacts.common.widget.CheckableQuickContactBadge;
 import com.android.mms.LogTag;
@@ -280,16 +281,6 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         // Register for updates in changes of any of the contacts in this conversation.
         ContactList contacts = conversation.getRecipients();
 
-        // Location
-        if (SudaUtils.isSupportLanguage(true)) {
-            mLocationView.setText(mPu.getLocalNumberInfo(contacts.get(0).getNumber()));
-        }
-
-        if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
-            Log.v(TAG, "bind: contacts.addListeners " + this);
-        }
-        Contact.addListener(this);
-
         // Subject
         SmileyParser parser = SmileyParser.getInstance();
         final String snippet = conversation.getSnippet();
@@ -300,6 +291,26 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         } else {
             mSubjectView.setText(parser.addSmileySpans(snippet));
         }
+
+        // Location
+        if (SudaUtils.isSupportLanguage(true)) {
+            String company = StringUtils.getContentInBracket(snippet, contacts.get(0).getNumber());
+            String location = mPu.getLocalNumberInfo(contacts.get(0).getNumber());
+            if (TextUtils.isEmpty(location) || "信息服务台".equals(location)) {
+                if (!TextUtils.isEmpty(company)) {
+                    mLocationView.setText(company);
+                } else {
+                    mLocationView.setText(location);
+                }
+            } else {
+                mLocationView.setText(location);
+            }
+        }
+
+        if (Log.isLoggable(LogTag.CONTACT, Log.DEBUG)) {
+            Log.v(TAG, "bind: contacts.addListeners " + this);
+        }
+        Contact.addListener(this);
 
         // Transmission error indicator.
         mErrorIndicator.setVisibility(hasError ? VISIBLE : GONE);
