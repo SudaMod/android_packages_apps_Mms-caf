@@ -80,19 +80,21 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
     private Conversation mConversation;
 
+    private Context mContext;
+
+
     public static final StyleSpan STYLE_BOLD = new StyleSpan(Typeface.BOLD);
     public static final Pattern RTL_CHARACTERS =
         Pattern.compile("[\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\uFE70-\uFEFF]");
 
-    PhoneUtil mPu;
-
     public ConversationListItem(Context context) {
         super(context);
+        mContext = context;
     }
 
     public ConversationListItem(Context context, AttributeSet attrs) {
         super(context, attrs);
-        mPu = new PhoneUtil(context);
+        mContext = context;
         if (sDefaultContactImage == null) {
             Resources res = context.getResources();
             Bitmap defaultImage = BitmapFactory.decodeResource(res, R.drawable.ic_contact_picture);
@@ -295,7 +297,7 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         // Location
         if (SudaUtils.isSupportLanguage(true)) {
             String company = StringUtils.getContentInBracket(snippet, contacts.get(0).getNumber());
-            String location = mPu.getLocalNumberInfo(contacts.get(0).getNumber());
+            String location = PhoneUtil.getPhoneUtil(mContext).getLocalNumberInfo(contacts.get(0).getNumber());
             if (TextUtils.isEmpty(location) || "信息服务台".equals(location)) {
                 if (!TextUtils.isEmpty(company)) {
                     mLocationView.setText(company);
