@@ -357,6 +357,12 @@
             </intent-filter>
         </receiver>
 
+        <receiver android:name=".transaction.CopyCaptchasReceiver">
+            <intent-filter>
+                <action android:name="suda.NotificationClick"/>
+            </intent-filter>
+        </receiver>
+
         <activity android:name=".ui.ConfirmRateLimitActivity"
                   android:theme="@android:style/Theme.Dialog">
             <intent-filter>

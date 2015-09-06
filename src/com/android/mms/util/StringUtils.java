@@ -4,6 +4,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.text.TextUtils;
+import com.android.mms.R;
+import android.content.Context;
 
 
 /**
@@ -151,15 +153,14 @@ public class StringUtils implements StaticObjectInterface {
         return isCaptchasMessage;
     }
 
-    public static String getResultText(String company, String captchas) {
+    public static String getResultText(String company, String captchas, Context context) {
         StringBuilder builder = new StringBuilder();
         if (!TextUtils.isEmpty(company)) {
-            builder.append("收到来自" + company + "的验证码：");
+             builder.append(String.format(context.getString(R.string.code_from),company));
         } else {
-            builder.append("当前验证码为：");
+            builder.append(context.getString(R.string.code_is));
         }
         builder.append(captchas);
-        builder.append("\n已为您复制到剪切板");
         return builder.toString();
     }
 

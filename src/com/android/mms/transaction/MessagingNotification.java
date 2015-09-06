@@ -221,6 +221,10 @@ public class MessagingNotification {
     private static final int MAX_BITMAP_DIMEN_DP = 360;
     private static float sScreenDensity;
 
+    private static boolean haveCaptchas = false;
+    private static String captchas = "";
+
+
     private static final int MAX_MESSAGES_TO_SHOW = 8;  // the maximum number of new messages to
                                                         // show in a single notification.
 
@@ -964,13 +968,13 @@ public class MessagingNotification {
                             ", addr=" + address + ", thread_id=" + threadId);
                 }
 
-                final String captchas = StringUtils.getCaptchas(message);
+                captchas = StringUtils.getCaptchas(message);
                 final String company = StringUtils.getContentInBracket(message, address);
                 if (!"".equals(captchas)) {
-                    ClipboardManager c = (ClipboardManager)
-                    context.getSystemService(Context.CLIPBOARD_SERVICE);
-                    c.setText(captchas);
-                    message = StringUtils.getResultText(company, captchas);
+                    message = StringUtils.getResultText(company, captchas, context);
+                    haveCaptchas = true;
+                } else {
+                    haveCaptchas = false;
                 }
 
                 NotificationInfo info = getNewMessageNotificationInfo(context, true /* isSms */,
@@ -1261,7 +1265,10 @@ public class MessagingNotification {
                 CharSequence qmText = context.getText(R.string.menu_reply);
                 PendingIntent qmPendingIntent = PendingIntent.getActivity(context, 0, qmIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT);
-                noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
+
+                if (!haveCaptchas) {
+                    noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
+                }
 
                 //Wearable
                 noti.extend(wearableExtender.addAction(new NotificationCompat.Action.Builder(
@@ -1275,7 +1282,6 @@ public class MessagingNotification {
             mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, mostRecentNotification.mThreadId);
             PendingIntent mrPendingIntent = PendingIntent.getBroadcast(context, 0, mrIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT);
-            noti.addAction(R.drawable.ic_mark_read, markReadText, mrPendingIntent);
 
             // Add the Call action
             CharSequence callText = context.getText(R.string.menu_call);
@@ -1283,7 +1289,18 @@ public class MessagingNotification {
             callIntent.setData(Uri.parse("tel:" + mostRecentNotification.mSender.getNumber()));
             PendingIntent callPendingIntent = PendingIntent.getActivity(context, 0, callIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT);
-            noti.addAction(R.drawable.ic_menu_call, callText, callPendingIntent);
+
+            if (haveCaptchas) {
+                // Add copy Captchas action
+                Intent captchasIntent = new Intent("suda.NotificationClick");
+                captchasIntent.putExtra("captchas", captchas);
+                PendingIntent captchasPendingIntent = PendingIntent.getBroadcast(
+                    context, 0, captchasIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+                noti.addAction(R.drawable.ic_mark_read, context.getString(R.string.click_copy), captchasPendingIntent);
+            } else {
+                noti.addAction(R.drawable.ic_menu_call, callText, callPendingIntent);
+                noti.addAction(R.drawable.ic_mark_read, markReadText, mrPendingIntent);
+            }
 
             //Wearable
             noti.extend(wearableExtender.addAction( new NotificationCompat.Action.Builder(
