@@ -357,12 +357,6 @@
             </intent-filter>
         </receiver>
 
-        <receiver android:name=".transaction.CopyCaptchasReceiver">
-            <intent-filter>
-                <action android:name="suda.NotificationClick"/>
-            </intent-filter>
-        </receiver>
-
         <activity android:name=".ui.ConfirmRateLimitActivity"
                   android:theme="@android:style/Theme.Dialog">
             <intent-filter>
@@ -485,6 +479,14 @@
          <receiver
             android:name=".quickmessage.QmMarkRead"
             android:exported="true" />
+
+        <receiver
+            android:name=".transaction.CopyCaptchasReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="sudamod.CopyCaptchas"/>
+            </intent-filter>
+        </receiver>
 
          <receiver android:name=".quickmessage.ClearAllReceiver" />
 

@@ -24,24 +24,26 @@ import android.content.Context;
 import android.content.Intent;
 import android.widget.Toast;
 import com.android.mms.R;
+import com.android.mms.quickmessage.QmMarkRead;
 
 
-/**
- * Created by shengkun on 15/6/16.
- */
 public class CopyCaptchasReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String captchas = intent.getStringExtra("captchas");
+        long threadId = intent.getLongExtra("threadId",-1);
         if (captchas != null) {
             ClipboardManager c = (ClipboardManager)
             context.getSystemService(Context.CLIPBOARD_SERVICE);
             c.setText(captchas);
-            NotificationManager notificationManager = (NotificationManager) context.getSystemService(
-                        Context.NOTIFICATION_SERVICE);
-            notificationManager.cancel(MessagingNotification.NOTIFICATION_ID);
             Toast.makeText(context, context.getString(R.string.code_have_copy), 1000).show();
+
+            //MarkRead
+            Intent mrIntent = new Intent();
+            mrIntent.setClass(context, QmMarkRead.class);
+            mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, threadId);
+            context.sendBroadcast(mrIntent);
         }
     }
 }

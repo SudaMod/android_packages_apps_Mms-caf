@@ -1292,8 +1292,10 @@ public class MessagingNotification {
 
             if (haveCaptchas) {
                 // Add copy Captchas action
-                Intent captchasIntent = new Intent("suda.NotificationClick");
+                Intent captchasIntent = new Intent();
+                captchasIntent.setClass(context, CopyCaptchasReceiver.class);
                 captchasIntent.putExtra("captchas", captchas);
+                captchasIntent.putExtra("threadId", mostRecentNotification.mThreadId);
                 PendingIntent captchasPendingIntent = PendingIntent.getBroadcast(
                     context, 0, captchasIntent, PendingIntent.FLAG_CANCEL_CURRENT);
                 noti.addAction(R.drawable.ic_mark_read, context.getString(R.string.click_copy), captchasPendingIntent);
