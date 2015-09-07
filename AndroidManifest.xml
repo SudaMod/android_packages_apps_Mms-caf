@@ -480,13 +480,9 @@
             android:name=".quickmessage.QmMarkRead"
             android:exported="true" />
 
-        <receiver
+         <receiver
             android:name=".transaction.CopyCaptchasReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="sudamod.CopyCaptchas"/>
-            </intent-filter>
-        </receiver>
+            android:exported="true" />
 
          <receiver android:name=".quickmessage.ClearAllReceiver" />
 
