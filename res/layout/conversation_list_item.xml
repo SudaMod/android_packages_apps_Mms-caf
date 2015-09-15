@@ -62,7 +62,7 @@
             android:layout_toStartOf="@id/location"
             android:layout_alignBaseline="@id/location"
             android:layout_alignWithParentIfMissing="true"
-            android:textAppearance="@android:style/TextAppearance.Material.Subhead"
+            android:textAppearance="@android:style/TextAppearance.Material.Body1"
             android:singleLine="true"
             android:ellipsize="marquee"  />
 
