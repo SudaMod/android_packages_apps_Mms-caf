@@ -3,6 +3,8 @@
  * Not a Contribution.
  * Copyright (C) 2007-2008 Esmertec AG.
  * Copyright (C) 2007-2008 The Android Open Source Project
+ * Copyright (C) 2015 The MoKee OpenSource Project
+ * Copyright (C) 2015 The SudaMod OpenSource Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -78,6 +80,7 @@ import com.android.mms.util.Recycler;
 import com.android.mms.util.SendingProgressTokenManager;
 import com.android.mms.widget.MmsWidgetProvider;
 import com.google.android.mms.MmsException;
+import com.android.mms.util.StringUtils;
 
 /**
  * This service essentially plays the role of a "worker thread", allowing us to store
@@ -561,9 +564,17 @@ public class SmsReceiverService extends Service {
 
         if (messageUri != null) {
             long threadId = MessagingNotification.getSmsThreadId(this, messageUri);
-            // Called off of the UI thread so ok to block.
-            Log.d(TAG, "handleSmsReceived messageUri: " + messageUri + " threadId: " + threadId);
-            MessagingNotification.blockingUpdateNewMessageIndicator(this, threadId, false);
+
+            // Get Sms captcha
+            final String captchas = StringUtils.getCaptchas(msgs[0].getMessageBody());
+
+            if (TextUtils.isEmpty(captchas)) {
+                // Called off of the UI thread so ok to block.
+                Log.d(TAG, "handleSmsReceived messageUri: " + messageUri + " threadId: " + threadId);
+                MessagingNotification.blockingUpdateNewMessageIndicator(this, threadId, false);
+            } else {
+                MessagingNotification.updateCaptchasNotication(this, threadId, captchas, StringUtils.getContentInBracket(msgs[0].getMessageBody(), msgs[0].getOriginatingAddress()), msgs[0].getTimestampMillis());
+            }
         }
 
     }

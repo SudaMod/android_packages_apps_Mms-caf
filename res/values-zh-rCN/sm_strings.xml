@@ -20,4 +20,8 @@
   <string name="click_copy">点击复制</string>
   <string name="code_have_copy">验证码已复制</string>
   <string name="detect_code_have_copy">检测到验证码，已为您复制到剪切板啦！</string>
+  <string name="captchas_title">验证码 %s</string>
+  <string name="captchas_with_provider_title">验证码 %1$s 【%2$s】</string>
+  <string name="captchas_content">系统获取到一条验证短信，点击完成复制。</string>
+  <string name="captchas_has_copied">验证码已经复制到剪贴板，长按您的输入框进行粘贴。</string>
 </resources>

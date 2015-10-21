@@ -108,9 +108,6 @@ import com.google.android.mms.pdu.MultimediaMessagePdu;
 import com.google.android.mms.pdu.PduHeaders;
 import com.google.android.mms.pdu.PduPersister;
 
-import com.android.mms.util.StringUtils;
-import android.content.ClipboardManager;
-import android.widget.Toast;
 
 /**
  * This class is used to update the notification indicator. It will check whether
@@ -124,6 +121,7 @@ public class MessagingNotification {
 
     public static final int NOTIFICATION_ID = 123;
     public static final int FULL_NOTIFICATION_ID   = 125;
+    public static final int CAPTCHAS_NOTIFICATION_ID = 127;
     public static final int MESSAGE_FAILED_NOTIFICATION_ID = 789;
     public static final int DOWNLOAD_FAILED_NOTIFICATION_ID = 531;
     private static final int ICC_NOTIFICATION_ID_BASE = 1000;
@@ -220,10 +218,6 @@ public class MessagingNotification {
     private static PduPersister sPduPersister;
     private static final int MAX_BITMAP_DIMEN_DP = 360;
     private static float sScreenDensity;
-
-    private static boolean haveCaptchas = false;
-    private static String captchas = "";
-
 
     private static final int MAX_MESSAGES_TO_SHOW = 8;  // the maximum number of new messages to
                                                         // show in a single notification.
@@ -968,14 +962,6 @@ public class MessagingNotification {
                             ", addr=" + address + ", thread_id=" + threadId);
                 }
 
-                captchas = StringUtils.getCaptchas(message);
-                final String company = StringUtils.getContentInBracket(message, address);
-                if (!"".equals(captchas)) {
-                    message = StringUtils.getResultText(company, captchas, context);
-                    haveCaptchas = true;
-                } else {
-                    haveCaptchas = false;
-                }
 
                 NotificationInfo info = getNewMessageNotificationInfo(context, true /* isSms */,
                         address, message, null /* subject */,
@@ -1105,6 +1091,57 @@ public class MessagingNotification {
                 Toast.makeText(context, message, (int)timeMillis).show();
             }
         });
+    }
+
+    public static void updateCaptchasNotication(Context context, long threadId, String captchas, String captchaProvider, long timeMillis) {
+        cancelNotification(context, CAPTCHAS_NOTIFICATION_ID);
+        String title = TextUtils.isEmpty(captchaProvider) ? String.format(context.getString(R.string.captchas_title), captchas)
+                : String.format(context.getString(R.string.captchas_with_provider_title), captchas, captchaProvider);
+
+        NotificationCompat.BigTextStyle style = new NotificationCompat.BigTextStyle()
+                .setBigContentTitle(context.getString(R.string.captchas_title)).bigText(context.getString(R.string.captchas_content));
+
+        NotificationCompat.Builder noti = new NotificationCompat.Builder(context).setWhen(timeMillis);
+        noti.setTicker(title).setContentTitle(title).setColor(context.getResources()
+                .getColor(R.color.mms_theme_color)).setPriority(Notification.PRIORITY_HIGH).setStyle(style).setContentText(context.getString(R.string.captchas_content));
+
+        Intent captchasIntent = new Intent();
+        captchasIntent.setClass(context, CopyCaptchasReceiver.class);
+        captchasIntent.putExtra("captchas", captchas);
+        captchasIntent.putExtra("threadId", threadId);
+        PendingIntent captchasPendingIntent = PendingIntent.getBroadcast(context, 0, captchasIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        noti.setContentIntent(captchasPendingIntent);
+
+        Intent mrIntent = new Intent();
+        mrIntent.setClass(context, QmMarkRead.class);
+        mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, threadId);
+        PendingIntent mrPendingIntent = PendingIntent.getBroadcast(context, 0, mrIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        noti.setDeleteIntent(mrPendingIntent);
+
+        // Always have to set the small icon or the notification is ignored
+        noti.setSmallIcon(R.drawable.stat_notify_sms);
+        CMConversationSettings conversationSettings = CMConversationSettings
+                .getOrNew(context, threadId);
+        int defaults = 0;
+        if (conversationSettings.getVibrateEnabled()) {
+            String pattern = conversationSettings.getVibratePattern();
+
+            if (!TextUtils.isEmpty(pattern)) {
+                noti.setVibrate(parseVibratePattern(pattern));
+            } else {
+                defaults |= Notification.DEFAULT_VIBRATE;
+            }
+        }
+
+        String ringtoneStr = conversationSettings.getNotificationTone();
+        noti.setSound(TextUtils.isEmpty(ringtoneStr) ? null : Uri.parse(ringtoneStr));
+        defaults |= Notification.DEFAULT_LIGHTS;
+
+        noti.setDefaults(defaults);
+        NotificationManagerCompat nm = NotificationManagerCompat.from(context);
+        nm.notify(CAPTCHAS_NOTIFICATION_ID, noti.build());
     }
 
     /**
@@ -1265,10 +1302,7 @@ public class MessagingNotification {
                 CharSequence qmText = context.getText(R.string.menu_reply);
                 PendingIntent qmPendingIntent = PendingIntent.getActivity(context, 0, qmIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT);
-
-                if (!haveCaptchas) {
-                    noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
-                }
+                noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
 
                 //Wearable
                 noti.extend(wearableExtender.addAction(new NotificationCompat.Action.Builder(
@@ -1282,6 +1316,7 @@ public class MessagingNotification {
             mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, mostRecentNotification.mThreadId);
             PendingIntent mrPendingIntent = PendingIntent.getBroadcast(context, 0, mrIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT);
+            noti.addAction(R.drawable.ic_mark_read, markReadText, mrPendingIntent);
 
             // Add the Call action
             CharSequence callText = context.getText(R.string.menu_call);
@@ -1289,20 +1324,7 @@ public class MessagingNotification {
             callIntent.setData(Uri.parse("tel:" + mostRecentNotification.mSender.getNumber()));
             PendingIntent callPendingIntent = PendingIntent.getActivity(context, 0, callIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT);
-
-            if (haveCaptchas) {
-                // Add copy Captchas action
-                Intent captchasIntent = new Intent();
-                captchasIntent.setClass(context, CopyCaptchasReceiver.class);
-                captchasIntent.putExtra("captchas", captchas);
-                captchasIntent.putExtra("threadId", mostRecentNotification.mThreadId);
-                PendingIntent captchasPendingIntent = PendingIntent.getBroadcast(
-                    context, 0, captchasIntent, PendingIntent.FLAG_CANCEL_CURRENT);
-                noti.addAction(R.drawable.ic_mark_read, context.getString(R.string.click_copy), captchasPendingIntent);
-            } else {
-                noti.addAction(R.drawable.ic_menu_call, callText, callPendingIntent);
-                noti.addAction(R.drawable.ic_mark_read, markReadText, mrPendingIntent);
-            }
+            noti.addAction(R.drawable.ic_menu_call, callText, callPendingIntent);
 
             //Wearable
             noti.extend(wearableExtender.addAction( new NotificationCompat.Action.Builder(

@@ -18,6 +18,7 @@
 package com.android.mms.transaction;
 
 import android.app.NotificationManager;
+import com.android.mms.transaction.MessagingNotification;
 import android.content.BroadcastReceiver;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -44,6 +45,7 @@ public class CopyCaptchasReceiver extends BroadcastReceiver {
             mrIntent.setClass(context, QmMarkRead.class);
             mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, threadId);
             context.sendBroadcast(mrIntent);
+            MessagingNotification.cancelNotification(context, MessagingNotification.CAPTCHAS_NOTIFICATION_ID);
         }
     }
 }
