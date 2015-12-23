@@ -42,6 +42,7 @@ import android.content.IntentFilter;
 import android.database.Cursor;
 import android.database.sqlite.SqliteWrapper;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -72,7 +73,6 @@ import com.android.mms.LogTag;
 import com.android.mms.MmsConfig;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
-import com.android.mms.data.Conversation;
 import com.android.mms.ui.ClassZeroActivity;
 import com.android.mms.ui.MessageUtils;
 import com.android.mms.ui.MessagingPreferenceActivity;
@@ -81,6 +81,12 @@ import com.android.mms.util.SendingProgressTokenManager;
 import com.android.mms.widget.MmsWidgetProvider;
 import com.google.android.mms.MmsException;
 import com.android.mms.util.StringUtils;
+
+import com.android.mms.ui.MessagingPreferenceActivity;
+import android.provider.Telephony.Threads;
+import com.android.mms.data.Conversation;
+import android.suda.location.PhoneLocation;
+import com.android.mms.data.ContactList;
 
 /**
  * This service essentially plays the role of a "worker thread", allowing us to store
@@ -565,6 +571,8 @@ public class SmsReceiverService extends Service {
         if (messageUri != null) {
             long threadId = MessagingNotification.getSmsThreadId(this, messageUri);
 
+            doGuiDang(this);
+
             // Get Sms captcha
             final String captchas = StringUtils.getCaptchas(msgs[0].getMessageBody());
 
@@ -577,6 +585,44 @@ public class SmsReceiverService extends Service {
             }
         }
 
+    }
+
+    private void doGuiDang(final Context context) {
+        new AsyncTask<Void,Void,Void>() {
+
+            @Override  
+            protected Void doInBackground(Void... none) {
+                Uri mUri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
+                Cursor c = null;
+                try {
+                    c = context.getContentResolver().query(mUri, null, null, null, null);
+                    while (c.moveToNext()) {
+                        Conversation conv = Conversation.from(context, c);
+                        ContactList contacts = conv.getRecipients();
+                        String location = PhoneLocation.getCityFromPhone(contacts.get(0).getNumber());
+                        boolean needMark;
+                        if ((TextUtils.isEmpty(location) || "信息服务台".equals(location) 
+                                || "中国移动客服".equals(location)) && !contacts.get(0).existsInDatabase()) {
+                            needMark = true;
+                        } else{
+                            needMark = false;
+                        }
+                        ContentValues updateValues = new ContentValues(); 
+                        updateValues.put(Threads.NOTIFICATION_MESSAGE, needMark? 1 : 0); 
+                        context.getContentResolver().update(mUri,
+                                    updateValues, "_id=?", new String[]{c.getLong(0)+""});
+                       // Log.e("ds","#######" + c.getLong(0) + "...." + location);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    if (c != null) {
+                        c.close();
+                }
+            }
+                return null;
+            }
+        }.execute();
     }
 
     private void handleBootCompleted() {
