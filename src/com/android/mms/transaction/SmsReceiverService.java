@@ -571,7 +571,7 @@ public class SmsReceiverService extends Service {
         if (messageUri != null) {
             long threadId = MessagingNotification.getSmsThreadId(this, messageUri);
 
-            doGuiDang(this);
+            doGuiDang(this, threadId);
 
             // Get Sms captcha
             final String captchas = StringUtils.getCaptchas(msgs[0].getMessageBody());
@@ -587,7 +587,7 @@ public class SmsReceiverService extends Service {
 
     }
 
-    private void doGuiDang(final Context context) {
+    private void doGuiDang(final Context context, final long threadId) {
         new AsyncTask<Void,Void,Void>() {
 
             @Override  
@@ -595,7 +595,7 @@ public class SmsReceiverService extends Service {
                 Uri mUri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
                 Cursor c = null;
                 try {
-                    c = context.getContentResolver().query(mUri, null, null, null, null);
+                    c = context.getContentResolver().query(mUri, null, "_id=?", new String[]{threadId+""}, null);
                     while (c.moveToNext()) {
                         Conversation conv = Conversation.from(context, c);
                         ContactList contacts = conv.getRecipients();

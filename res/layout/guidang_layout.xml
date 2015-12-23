@@ -2,10 +2,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingLeft="16dp"
-    android:paddingRight="16dp"
-    tools:context=".MainActivity">
-
+    android:background="@drawable/list_item_background_material"    
+    android:paddingStart="16dip"
+    android:paddingEnd="16dip" >
 
     <TextView
         android:layout_width="wrap_content"
@@ -16,6 +15,7 @@
         android:id="@+id/gui"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
         android:layout_centerVertical="true">
 
         <ImageView
@@ -32,7 +32,6 @@
             android:textColor="@android:color/white"
             android:textSize="18sp" />
 
-
     </RelativeLayout>
 
 
@@ -41,7 +40,6 @@
         android:layout_height="wrap_content"
         android:layout_centerVertical="true"
         android:layout_toRightOf="@+id/gui"
-        android:paddingLeft="12dp"
         android:text="@string/gui_info" />
 
     <ImageView
@@ -50,6 +48,5 @@
         android:layout_alignParentRight="true"
         android:layout_centerVertical="true"
         android:src="@drawable/arrow_right" />
-
 
 </RelativeLayout>
