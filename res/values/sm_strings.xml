@@ -27,5 +27,8 @@
   <string name="captchas_content">Received a captcha message, click to copy.</string>
   <string name="captchas_has_copied">Captcha already copied to the clipboard, long press your input box to paste.</string>
   <string name="guidang">归档信息</string>
+  <string name="gui">归</string>
+  <string name="gui_info">归档信息（验证码、通知类）</string>
+
 
 </resources>

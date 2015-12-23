@@ -1169,36 +1169,52 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         editor.apply();
     }
 
-    private void doGuiDang(Context context) {
-        Uri mUri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
-        Cursor c = null;
-        try {
-            c = context.getContentResolver().query(mUri, null, null, null, null);
-            while (c.moveToNext()) {
-                Conversation conv = Conversation.from(context, c);
-                ContactList contacts = conv.getRecipients();
-                String location = PhoneLocation.getCityFromPhone(contacts.get(0).getNumber());
-                boolean needMark;
-                if (TextUtils.isEmpty(location) || "信息服务台".equals(location) || "中国移动客服".equals(location)) {
-                    needMark = true;
-                } else{
-                    needMark = false;
-                }
-                ContentValues updateValues = new ContentValues(); 
-                updateValues.put(Threads.NOTIFICATION_MESSAGE, needMark? 1 : 0); 
-                context.getContentResolver().update(mUri,
+    private void doGuiDang(final Context context) {
+        new AsyncTask<Void,Void,String>() {
+
+            @Override  
+            protected void onPreExecute() {  
+                mGuiDang.setSummary("正在归档短信...");  
+            }  
+
+            @Override  
+            protected void onPostExecute(String s) {  
+                mGuiDang.setSummary("归档完毕");  
+            }  
+
+            @Override  
+            protected String doInBackground(Void... none) {
+                Uri mUri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
+                Cursor c = null;
+                try {
+                    c = context.getContentResolver().query(mUri, null, null, null, null);
+                    while (c.moveToNext()) {
+                        Conversation conv = Conversation.from(context, c);
+                        ContactList contacts = conv.getRecipients();
+                        String location = PhoneLocation.getCityFromPhone(contacts.get(0).getNumber());
+                        boolean needMark;
+                        if ((TextUtils.isEmpty(location) || "信息服务台".equals(location) 
+                                || "中国移动客服".equals(location)) && !contacts.get(0).existsInDatabase()) {
+                            needMark = true;
+                        } else{
+                            needMark = false;
+                        }
+                        ContentValues updateValues = new ContentValues(); 
+                        updateValues.put(Threads.NOTIFICATION_MESSAGE, needMark? 1 : 0); 
+                        context.getContentResolver().update(mUri,
                                     updateValues, "_id=?", new String[]{c.getLong(0)+""});
-
-
-                Log.e("ds","#######" + c.getLong(0) + "...." + location);
+                       // Log.e("ds","#######" + c.getLong(0) + "...." + location);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    if (c != null) {
+                        c.close();
+                }
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            if (c != null) {
-                c.close();
+                return null;
             }
-        }
+        }.execute();
     }
 
 
