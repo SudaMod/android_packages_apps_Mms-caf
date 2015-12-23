@@ -72,6 +72,8 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Toolbar;
+import android.widget.Button;
+import android.content.Intent;
 
 import com.android.mms.LogTag;
 import com.android.mms.MmsConfig;
@@ -181,6 +183,9 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private Toast mComposeDisabledToast;
     private static long mLastDeletedThread = -1;
 
+    private boolean isguidang = false;
+    private boolean enableGuiDang = false;
+
     private View.OnClickListener mComposeClickHandler = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
@@ -228,7 +233,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         mProgressDialog = createProgressDialog();
 
-        setTitle(R.string.app_label);
 
         mHandler = new Handler();
         mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
@@ -249,9 +253,39 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         setupFilterSpinner();
 
+        setTitle(R.string.app_label);
+
         View actionButton = findViewById(R.id.floating_action_button);
         actionButton.setOnClickListener(mComposeClickHandler);
+
+        enableGuiDang = MessagingPreferenceActivity.getGuiDangEnabled(this);
+        isguidang = getIntent().getBooleanExtra("isguidang", false);
+        if(!isguidang && enableGuiDang) {
+            getListView().addHeaderView(buildHeader()); 
+        } else{
+            if(isguidang) {
+                actionButton.setVisibility(View.GONE);
+                setTitle(R.string.guidang);
+            }
+        }
+
+
     }
+
+
+     private View buildHeader() {  
+        Button btn=new Button(this);  
+          
+        btn.setText(getString(R.string.guidang));  
+        btn.setOnClickListener(new View.OnClickListener() {  
+            public void onClick(View v) {  
+                Intent intent=new Intent(ConversationList.this,ConversationList.class); 
+                intent.putExtra("isguidang", true);
+                ConversationList.this.startActivity(intent);
+            }  
+        });  
+        return(btn);  
+    }  
 
     @Override
     public void onSaveInstanceState(Bundle outState) {
@@ -587,8 +621,16 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private void startAsyncQuery() {
         try {
             ((TextView)(getListView().getEmptyView())).setText(R.string.loading_conversations);
+            if(!enableGuiDang){
+                Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId, -1);
+            } else {
+                if(isguidang) {
+                    Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId, 1);
+                } else {
+                    Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId, 0);
+                }
+            }
 
-            Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId);
             Conversation.startQuery(mQueryHandler,
                     UNREAD_THREADS_QUERY_TOKEN, Threads.READ + "=0", mFilterSubId);
         } catch (SQLiteException e) {
@@ -1390,7 +1432,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     public void checkAll() {
         int count = getListView().getCount();
 
-        for (int i = 0; i < count; i++) {
+        for (int i = (enableGuiDang && !isguidang) ? 1 : 0; i < count; i++) {
             getListView().setItemChecked(i, true);
         }
         mListAdapter.notifyDataSetChanged();
@@ -1399,7 +1441,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     public void unCheckAll() {
         int count = getListView().getCount();
 
-        for (int i = 0; i < count; i++) {
+        for (int i = (enableGuiDang && !isguidang) ? 1 : 0; i < count; i++) {
             getListView().setItemChecked(i, false);
         }
         mListAdapter.notifyDataSetChanged();
@@ -1465,10 +1507,24 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
             return true;
         }
 
+        private int getCount(){
+            int count = getListView().getCount();
+            if(enableGuiDang && !isguidang) {
+                count--;
+            }
+            return count;
+        }
+
         @Override
         public void onDestroyActionMode(ActionMode mode) {
-            ConversationListAdapter adapter = (ConversationListAdapter)getListView().getAdapter();
-            adapter.uncheckAll();
+            // ConversationListAdapter adapter = (ConversationListAdapter)getListView().getAdapter();
+            // adapter.uncheckAll();
+            int count = mListAdapter.getCount();
+            for (int i = 0; i < count; i++) {
+               Cursor cursor = (Cursor)mListAdapter.getItem(i);
+               Conversation conv = Conversation.from(ConversationList.this, cursor);
+               conv.setIsChecked(false);
+            }
             mSelectedThreadIds = null;
             if(mFilterSpinner.getVisibility() == View.VISIBLE){
                 mFilterSpinner.setEnabled(true);
@@ -1499,7 +1555,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         private boolean allItemsSelected() {
             ListView lv = getListView();
-            return lv.getCount() == lv.getCheckedItemCount();
+            return getCount() == lv.getCheckedItemCount();
         }
     }
 

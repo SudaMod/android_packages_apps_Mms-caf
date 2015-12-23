@@ -41,6 +41,10 @@
             android:targetPackage="com.android.settings">
         </intent>
     </Preference>
+     <SwitchPreference android:defaultValue="true"
+                      android:key="pref_key_gui_dang"
+                      android:title="@string/guidang" />
+
     <PreferenceCategory android:title="@string/pref_sms_storage_title"
                       android:key="pref_key_storage_settings">
 <!--

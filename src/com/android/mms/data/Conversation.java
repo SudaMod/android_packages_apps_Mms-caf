@@ -796,15 +796,20 @@ public class Conversation {
      * @param token   The token that will be passed to onQueryComplete
      * @param subId msim subscription id
      */
-    public static void startQueryForAll(AsyncQueryHandler handler, int token, Integer subId) {
+    public static void startQueryForAll(AsyncQueryHandler handler, int token, Integer subId, int queryType) {
         handler.cancelOperation(token);
 
         // This query looks like this in the log:
         // I/Database(  147): elapsedTime4Sql|/data/data/com.android.providers.telephony/databases/
         // mmssms.db|2.253 ms|SELECT _id, date, message_count, recipient_ids, snippet, snippet_cs,
         // read, error, has_attachment FROM threads ORDER BY  date DESC
-
-        startQuery(handler, token, null, subId);
+        String selection = null;
+        if(queryType == 0){
+            selection = Threads.NOTIFICATION_MESSAGE + "=0";
+        } else if (queryType == 1){
+            selection = Threads.NOTIFICATION_MESSAGE + "=1";
+        }
+        startQuery(handler, token, selection, subId);
     }
 
     /**

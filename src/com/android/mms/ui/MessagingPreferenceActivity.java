@@ -86,6 +86,13 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import android.content.ContentValues;
+import android.provider.Telephony.Threads;
+import com.android.mms.data.Conversation;
+import android.suda.location.PhoneLocation;
+import android.text.TextUtils;
+import com.android.mms.data.ContactList;
+
 
 /**
  * With this activity, users can set preferences for MMS and SMS and
@@ -115,6 +122,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String GROUP_MMS_MODE           = "pref_key_mms_group_mms";
     public static final String SMS_CDMA_PRIORITY        = "pref_key_sms_cdma_priority";
     public static final String ENABLE_EMOTICONS         = "pref_key_enable_emoticons";
+    public static final String ENABLE_GUI_DANG          = "pref_key_gui_dang";
 
     // Unicode
     public static final String UNICODE_STRIPPING            = "pref_key_unicode_stripping_value";
@@ -176,6 +184,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private SwitchPreference mEnableNotificationsPref;
     private SwitchPreference mMmsAutoEnableDataPref;
     private SwitchPreference mMmsAutoRetrievialPref;
+    private SwitchPreference mGuiDang;
     private ListPreference mMmsExpiryPref;
     private ListPreference mMmsExpiryCard1Pref;
     private ListPreference mMmsExpiryCard2Pref;
@@ -253,6 +262,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         // Since the enabled notifications pref can be changed outside of this activity,
         // we have to reload it whenever we resume, including the blacklist summary
         setEnabledNotificationsPref();
+        setEnabledGuiDangPref();
         // Initialize the sms signature
         updateSignatureStatus();
         updateBlacklistSummary();
@@ -321,6 +331,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mMmsLimitPref = findPreference("pref_key_mms_delete_limit");
         mClearHistoryPref = findPreference("pref_key_mms_clear_history");
         mEnableNotificationsPref = (SwitchPreference) findPreference(NOTIFICATION_ENABLED);
+        mGuiDang = (SwitchPreference) findPreference(ENABLE_GUI_DANG);
         mMmsAutoEnableDataPref = (SwitchPreference) findPreference(AUTO_ENABLE_DATA);
         mMmsAutoRetrievialPref = (SwitchPreference) findPreference(AUTO_RETRIEVAL);
         mMmsExpiryPref = (ListPreference) findPreference("pref_key_mms_expiry");
@@ -428,6 +439,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         setMmsRelatedPref();
 
         setEnabledNotificationsPref();
+        setEnabledGuiDangPref();
 
         if (getResources().getBoolean(R.bool.config_savelocation)) {
             if (MessageUtils.isMultiSimEnabledMms()) {
@@ -615,6 +627,10 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         return title;
     }
 
+    private void setEnabledGuiDangPref() {
+        mGuiDang.setChecked(getGuiDangEnabled(this));
+    }
+
     private void setEnabledNotificationsPref() {
         // The "enable notifications" setting is really stored in our own prefs. Read the
         // current value and set the Switch to match.
@@ -747,6 +763,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
             enableNotifications(mEnableNotificationsPref.isChecked(), this);
         } else if (preference == mSmsSignaturePref) {
             updateSignatureStatus();
+        } else if (preference == mGuiDang) {
+            enableGuiDang(mGuiDang.isChecked(), this);
         } else if (preference == mEnableQuickMessagePref) {
             // Update the actual "enable quickmessage" value that is stored in secure settings.
             enableQuickMessage(mEnableQuickMessagePref.isChecked(), this);
@@ -1131,6 +1149,58 @@ public class MessagingPreferenceActivity extends PreferenceActivity
             prefs.getBoolean(MessagingPreferenceActivity.NOTIFICATION_ENABLED, true);
         return notificationsEnabled;
     }
+
+    public static boolean getGuiDangEnabled(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean guiDangEnabled =
+            prefs.getBoolean(MessagingPreferenceActivity.ENABLE_GUI_DANG, false);
+        return guiDangEnabled;
+    }
+
+    public void enableGuiDang(boolean enabled, Context context) {
+        SharedPreferences.Editor editor =
+            PreferenceManager.getDefaultSharedPreferences(context).edit();
+        if(enabled) {
+            doGuiDang(context);
+        }
+
+        editor.putBoolean(MessagingPreferenceActivity.ENABLE_GUI_DANG, enabled);
+
+        editor.apply();
+    }
+
+    private void doGuiDang(Context context) {
+        Uri mUri = Threads.CONTENT_URI.buildUpon().appendQueryParameter("simple", "true").build();
+        Cursor c = null;
+        try {
+            c = context.getContentResolver().query(mUri, null, null, null, null);
+            while (c.moveToNext()) {
+                Conversation conv = Conversation.from(context, c);
+                ContactList contacts = conv.getRecipients();
+                String location = PhoneLocation.getCityFromPhone(contacts.get(0).getNumber());
+                boolean needMark;
+                if (TextUtils.isEmpty(location) || "信息服务台".equals(location) || "中国移动客服".equals(location)) {
+                    needMark = true;
+                } else{
+                    needMark = false;
+                }
+                ContentValues updateValues = new ContentValues(); 
+                updateValues.put(Threads.NOTIFICATION_MESSAGE, needMark? 1 : 0); 
+                context.getContentResolver().update(mUri,
+                                    updateValues, "_id=?", new String[]{c.getLong(0)+""});
+
+
+                Log.e("ds","#######" + c.getLong(0) + "...." + location);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (c != null) {
+                c.close();
+            }
+        }
+    }
+
 
     public static void enableNotifications(boolean enabled, Context context) {
         // Store the value of notifications in SharedPreferences
