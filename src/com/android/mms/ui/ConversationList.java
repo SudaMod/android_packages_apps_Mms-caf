@@ -310,10 +310,12 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         if(enableGuiDang && !haveADDHeadView) {
             haveADDHeadView = true;
             getListView().addHeaderView(headerView); 
+            startAsyncQuery();
         }
         if(!enableGuiDang && haveADDHeadView){
             haveADDHeadView = false;
             getListView().removeHeaderView(headerView); 
+            startAsyncQuery();
         }
         boolean isSmsEnabled = MmsConfig.isSmsEnabled(this);
         if (isSmsEnabled != mIsSmsEnabled) {
