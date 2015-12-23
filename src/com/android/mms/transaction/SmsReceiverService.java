@@ -599,10 +599,9 @@ public class SmsReceiverService extends Service {
                     while (c.moveToNext()) {
                         Conversation conv = Conversation.from(context, c);
                         ContactList contacts = conv.getRecipients();
-                        String location = PhoneLocation.getCityFromPhone(contacts.get(0).getNumber());
+                        String code = PhoneLocation.getCodeFromPhone(contacts.get(0).getNumber().replace(" ", ""));
                         boolean needMark;
-                        if ((TextUtils.isEmpty(location) || "信息服务台".equals(location) 
-                                || "中国移动客服".equals(location)) && !contacts.get(0).existsInDatabase()) {
+                        if ((TextUtils.isEmpty(code) || "001".equals(code)) && !contacts.get(0).existsInDatabase()) {
                             needMark = true;
                         } else{
                             needMark = false;
