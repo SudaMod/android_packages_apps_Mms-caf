@@ -185,6 +185,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private Toast mComposeDisabledToast;
     private static long mLastDeletedThread = -1;
 
+    private boolean canGuiDang = true;
     private boolean enableGuiDang = false;
     private boolean haveADDHeadView = false;
 
@@ -272,8 +273,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         View actionButton = findViewById(R.id.floating_action_button);
         actionButton.setOnClickListener(mComposeClickHandler);
 
-
-
     }
 
 
@@ -305,18 +304,27 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     @Override
     protected void onResume() {
         super.onResume();
-
+        
         enableGuiDang = MessagingPreferenceActivity.getGuiDangEnabled(this);
-        if(enableGuiDang && !haveADDHeadView) {
+
+        if (enableGuiDang && !canGuiDang) {
+            setTitle(R.string.guidang);
+        } else {
+            setTitle(R.string.app_label);
+        }
+
+        if(canGuiDang && enableGuiDang && !haveADDHeadView) {
             haveADDHeadView = true;
             getListView().addHeaderView(headerView); 
             startAsyncQuery();
         }
-        if(!enableGuiDang && haveADDHeadView){
+
+        if(canGuiDang && !enableGuiDang && haveADDHeadView){
             haveADDHeadView = false;
             getListView().removeHeaderView(headerView); 
             startAsyncQuery();
         }
+
         boolean isSmsEnabled = MmsConfig.isSmsEnabled(this);
         if (isSmsEnabled != mIsSmsEnabled) {
             mIsSmsEnabled = isSmsEnabled;
@@ -623,7 +631,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private void startAsyncQuery() {
         try {
             ((TextView)(getListView().getEmptyView())).setText(R.string.loading_conversations);
-            if(enableGuiDang){
+            if(canGuiDang && enableGuiDang){
                 Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId, 0);
             } else {
                 Conversation.startQueryForAll(mQueryHandler, THREAD_LIST_QUERY_TOKEN, mFilterSubId, -1);
@@ -1288,7 +1296,20 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
                 mListAdapter.changeCursor(cursor);
 
                 if (mListAdapter.getCount() == 0) {
+                    setTitle(R.string.app_label);
                     ((TextView)(getListView().getEmptyView())).setText(R.string.no_conversations);
+                }
+
+		if (mListAdapter.getCount() == 0 && enableGuiDang && canGuiDang) {
+                    canGuiDang = false;
+                    if (enableGuiDang) {
+                        setTitle(R.string.guidang);
+                    }
+
+                    if (haveADDHeadView) {
+                        getListView().removeHeaderView(headerView); 
+                    }
+                    startAsyncQuery();
                 }
 
                 if (mDoOnceAfterFirstQuery) {
@@ -1430,7 +1451,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     public void checkAll() {
         int count = getListView().getCount();
 
-        for (int i = (enableGuiDang) ? 1 : 0; i < count; i++) {
+        for (int i = (canGuiDang && enableGuiDang) ? 1 : 0; i < count; i++) {
             getListView().setItemChecked(i, true);
         }
         mListAdapter.notifyDataSetChanged();
@@ -1439,7 +1460,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     public void unCheckAll() {
         int count = getListView().getCount();
 
-        for (int i = (enableGuiDang) ? 1 : 0; i < count; i++) {
+        for (int i = (canGuiDang && enableGuiDang) ? 1 : 0; i < count; i++) {
             getListView().setItemChecked(i, false);
         }
         mListAdapter.notifyDataSetChanged();
@@ -1505,9 +1526,9 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
             return true;
         }
 
-        private int getCount(){
+        private int getCount() {
             int count = getListView().getCount();
-            if(enableGuiDang) {
+            if(canGuiDang && enableGuiDang) {
                 count--;
             }
             return count;
