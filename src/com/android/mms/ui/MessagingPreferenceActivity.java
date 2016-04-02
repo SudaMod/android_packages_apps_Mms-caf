@@ -67,6 +67,7 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Toast;
 import android.util.Log;
+import android.provider.MediaStore;
 
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.PhoneConstants;
@@ -150,6 +151,10 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String NOTIFICATION_VIBRATE_PATTERN =
             "pref_key_mms_notification_vibrate_pattern";
 
+    public static final String SYSTEM_MEDIA_PATH = "/system/media/audio";
+    public static final String SYSTEM_NOTIFICATIONS_PATH = SYSTEM_MEDIA_PATH + File.separator
+            + "notifications";
+
     // Menu entries
     private static final int MENU_RESTORE_DEFAULTS    = 1;
 
@@ -162,6 +167,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private PreferenceCategory mMmsPrefCategory;
     private PreferenceCategory mNotificationPrefCategory;
     private PreferenceCategory mSmscPrefCate;
+    private PreferenceCategory mExtraSettingsCategory;
 
     // Delay send
     public static final String SEND_DELAY_DURATION = "pref_key_send_delay";
@@ -214,6 +220,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private static final int EVENT_GET_SMSC_DONE = 1;
     private static final String EXTRA_EXCEPTION = "exception";
     private static SmscHandler mHandler = null;
+    private static Uri soundUriSaved = null;
 
     private BroadcastReceiver mReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -238,6 +245,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
     // Blacklist
     private PreferenceScreen mBlacklist;
+
+    // Smart Dialer
+    private SwitchPreference mSmartDialer;
 
     @Override
     protected void onCreate(Bundle icicle) {
@@ -312,6 +322,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mSmsEnabledPref = findPreference("pref_key_sms_enabled");
 
         mStoragePrefCategory = (PreferenceCategory)findPreference("pref_key_storage_settings");
+        mExtraSettingsCategory = (PreferenceCategory)findPreference("pref_key_extra_settings");
         mSmsPrefCategory = (PreferenceCategory)findPreference("pref_key_sms_settings");
         mMmsPrefCategory = (PreferenceCategory)findPreference("pref_key_mms_settings");
         mNotificationPrefCategory =
@@ -378,6 +389,13 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
         // Blacklist screen - Needed for setting summary
         mBlacklist = (PreferenceScreen) findPreference(BLACKLIST);
+
+        // Smart Function
+        mSmartDialer = (SwitchPreference) findPreference(SMART_DIALER_ENABLED);
+        if (!getResources().getBoolean(R.bool.config_enableMmsSmartDialer) &&
+                (mSmartDialer != null)) {
+            mExtraSettingsCategory.removePreference(mSmartDialer);
+        }
 
         setMessagePreferences();
     }
@@ -495,8 +513,11 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         setMmsExpiryPref();
 
         String soundValue = sharedPreferences.getString(NOTIFICATION_RINGTONE, null);
-        setRingtoneSummary(soundValue);
 
+        setRingtoneSummary(soundValue);
+        SharedPreferences.Editor prefsEditor = sharedPreferences.edit();
+        prefsEditor.putString(NOTIFICATION_RINGTONE, getRingtoneUri().toString());
+        prefsEditor.apply();
         mMessageSendDelayPref.setOnPreferenceChangeListener(this);
     }
 
@@ -564,8 +585,34 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         return Long.valueOf(prefs.getString(SEND_DELAY_DURATION, "0"));
     }
 
-    private void setRingtoneSummary(String soundValue) {
+    private Uri getRingtoneUri() {
+        return soundUriSaved;
+    }
+
+    private void setRingtoneUri(String soundValue) {
         Uri soundUri = TextUtils.isEmpty(soundValue) ? null : Uri.parse(soundValue);
+        int id = 0;
+        if(!soundUri.toString().contains("content://")) {
+            String path = SYSTEM_NOTIFICATIONS_PATH + File.separator + soundValue;
+            soundUri = MediaStore.Audio.Media.getContentUriForPath(path);
+            Cursor cursor = getContentResolver().query(
+                    MediaStore.Audio.Media.INTERNAL_CONTENT_URI,
+                    new String[] { MediaStore.MediaColumns._ID },
+                    MediaStore.MediaColumns.DATA + "=? ",
+                    new String[] { path }, null);
+            if (cursor != null && cursor.moveToFirst()) {
+                id = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns._ID));
+                cursor.close();
+            }
+            soundUri = Uri.withAppendedPath(soundUri, ""+id);
+        }
+
+        soundUriSaved = soundUri;
+    }
+
+    private void setRingtoneSummary(String soundValue) {
+        setRingtoneUri(soundValue);
+        Uri soundUri = getRingtoneUri();
         Ringtone tone = soundUri != null ? RingtoneManager.getRingtone(this, soundUri) : null;
         mRingtonePref.setSummary(tone != null ? tone.getTitle(this)
                 : getResources().getString(R.string.silent_ringtone));
